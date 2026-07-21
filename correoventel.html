@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enviar Cotización por Correo - Sistema Ventel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 'brand-pink': '#E10098', 'brand-pink-dark': '#b8007c' } } }
+        }
+    </script>
+    <?!= include('app_theme'); ?>
+    <style>
+        .step-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.75rem;
+            height: 1.75rem;
+            border-radius: 999px;
+            background: var(--brand);
+            color: #fff;
+            font-weight: 700;
+            font-size: .85rem;
+            flex: none;
+        }
+        .step-chip.done { background: var(--ok); }
+    </style>
+</head>
+<body class="h-full text-slate-800">
+    <div class="app-aurora"></div>
+
+    <nav id="navbar" class="v-nav">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <img src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool" class="h-8 bg-brand-pink p-1 rounded-md shadow-sm">
+                    <span class="font-bold text-xl text-brand-pink tracking-tight hidden sm:inline">Ventel</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button id="backButton" class="v-btn v-btn-ghost v-btn-sm">
+                        <span class="w-5 h-5 block" data-icon="arrow-left"></span>
+                        <span class="hidden sm:inline">Volver al Inicio</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content" class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-8" data-animate>
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Enviar Cotización por Correo</h1>
+            <p class="text-slate-600 mt-1">Busca un folio para cargar sus datos, redacta el mensaje y envía la cotización completa al cliente.</p>
+        </header>
+
+        <!-- Alerta para notificaciones -->
+        <div id="alert-container" class="mb-6"></div>
+
+        <!-- Paso 1: Buscar Cotización -->
+        <section class="mb-8 p-6 v-card" data-animate>
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span class="step-chip" id="step1-chip">1</span> Cargar Datos de Cotización</h2>
+            <form id="searchQuoteForm" class="flex flex-col sm:flex-row items-start gap-4">
+                <div class="relative flex-grow w-full">
+                    <label for="folioInput" class="v-label">Buscar por Folio</label>
+                    <input type="text" id="folioInput" placeholder="Ej: LVP-240801-0001" class="v-input">
+                </div>
+                <div class="w-full sm:w-auto sm:pt-6">
+                    <button type="submit" id="searchQuoteButton" class="w-full v-btn v-btn-dark">
+                        <span class="button-icon"><span class="w-5 h-5 block" data-icon="search"></span></span>
+                        <span class="button-text">Cargar Datos</span>
+                    </button>
+                </div>
+            </form>
+            <div id="quote-data-status" class="mt-4 text-sm text-slate-600 hidden"></div>
+        </section>
+
+        <!-- Paso 2: Redactar y Enviar -->
+        <form id="emailForm" data-animate>
+            <section class="p-6 v-card">
+                <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><span class="step-chip">2</span> Redactar Correo</h2>
+                <fieldset id="email-fields" disabled class="space-y-6">
+                    <div>
+                        <label for="recipient" class="v-label">Para:</label>
+                        <input type="email" id="recipient" class="v-input" required>
+                    </div>
+                    <div>
+                        <label for="subject" class="v-label">Asunto:</label>
+                        <input type="text" id="subject" class="v-input" required>
+                    </div>
+                    <div>
+                        <label for="formatSelect" class="v-label">Formato del PDF adjunto:</label>
+                        <select id="formatSelect" class="v-select">
+                            <option value="">Cargando formatos...</option>
+                        </select>
+                        <p id="formatHint" class="text-xs text-slate-500 mt-1"></p>
+                    </div>
+                    <div>
+                        <label for="body" class="v-label">Cuerpo del Mensaje (la cotización se adjuntará automáticamente como archivo PDF):</label>
+                        <textarea id="body" rows="8" class="v-textarea" required></textarea>
+                    </div>
+                    <p id="senderInfo" class="text-xs text-slate-500 flex items-center gap-2 mt-2">
+                        <span class="w-4 h-4 block flex-none" data-icon="mail"></span>
+                        <span id="senderInfoText">Verificando remitente...</span>
+                    </p>
+                </fieldset>
+                <div class="mt-8 pt-6 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+                    <button type="button" id="viewQuoteButton" disabled class="v-btn v-btn-ghost hidden sm:inline-flex" title="Revisar la cotización antes de enviarla">
+                        <span class="w-5 h-5 block" data-icon="eye"></span>
+                        <span>Ver Cotización</span>
+                    </button>
+                    <button type="submit" id="sendButton" disabled class="v-btn v-btn-primary px-6 py-3 ml-auto">
+                        <span class="button-icon"><span class="w-5 h-5 block" data-icon="send"></span></span>
+                        <span class="button-text">Enviar Correo</span>
+                    </button>
+                </div>
+            </section>
+        </form>
+    </main>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?>, format: <?!= JSON.stringify(format) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!requireSession()) return;
+
+        // --- Elementos del DOM ---
+        const searchQuoteForm = document.getElementById('searchQuoteForm');
+        const folioInput = document.getElementById('folioInput');
+        const searchQuoteButton = document.getElementById('searchQuoteButton');
+        const quoteDataStatus = document.getElementById('quote-data-status');
+        const step1Chip = document.getElementById('step1-chip');
+
+        const emailForm = document.getElementById('emailForm');
+        const emailFields = document.getElementById('email-fields');
+        const recipientInput = document.getElementById('recipient');
+        const subjectInput = document.getElementById('subject');
+        const bodyInput = document.getElementById('body');
+        const sendButton = document.getElementById('sendButton');
+        const viewQuoteButton = document.getElementById('viewQuoteButton');
+        const backButton = document.getElementById('backButton');
+        const alertContainer = document.getElementById('alert-container');
+        const formatSelect = document.getElementById('formatSelect');
+        const formatHint = document.getElementById('formatHint');
+
+        let loadedQuoteData = null;
+
+        // Tolerancia a despliegues parciales: si el app_core cargado aún no trae
+        // AppCache, la pantalla funciona igual, solo sin caché local.
+        const Cache = window.AppCache || { get: () => null, set: () => {}, remove: () => {}, ageLabel: () => '' };
+
+        // El folio y el formato pueden venir de otra pantalla por la URL; si no,
+        // se usa lo que se guardó con la cotización.
+        const urlFolio = AppUrl.param('folio');
+        const urlFormat = AppUrl.param('format');
+
+        /**
+         * Llena el selector con los formatos habilitados y preselecciona el indicado.
+         */
+        let formatChangeWired = false;
+        const renderFormats = (response, preferredId) => {
+            if (!response || !response.success || !response.formats || response.formats.length === 0) {
+                formatSelect.innerHTML = '<option value="">Sin formatos disponibles</option>';
+                formatHint.textContent = 'No hay formatos habilitados. Revisa el panel de administración o los registros del script.';
+                return;
+            }
+
+            const chosen = response.formats.some(f => f.id === preferredId)
+                ? preferredId
+                : response.defaultId;
+
+            formatSelect.innerHTML = response.formats
+                .map(f => `<option value="${f.id}" ${f.id === chosen ? 'selected' : ''}>${f.name}</option>`)
+                .join('');
+
+            const describe = () => {
+                const match = response.formats.find(f => f.id === formatSelect.value);
+                formatHint.textContent = match ? match.description : '';
+            };
+            describe();
+            if (!formatChangeWired) {
+                formatSelect.addEventListener('change', describe);
+                formatChangeWired = true;
+            }
+        };
+
+        const loadEmailFormats = (preferredId) => {
+            // Los formatos casi no cambian: se pintan al instante desde la caché local
+            // y se revalidan en segundo plano contra el servidor.
+            const cached = Cache.get('formats');
+            if (cached && cached.data) renderFormats(cached.data, preferredId);
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    if (response && response.success) Cache.set('formats', response);
+                    renderFormats(response, formatSelect.value || preferredId);
+                })
+                .withFailureHandler(error => {
+                    if (cached && cached.data) return; // Ya hay opciones pintadas desde caché.
+                    formatSelect.innerHTML = '<option value="">Error al cargar formatos</option>';
+                    formatHint.textContent = 'Error al cargar los formatos: ' + error.message;
+                })
+                .getEnabledQuoteFormats();
+        };
+
+        // --- Remitente visible: el asesor sabe desde qué correo saldrá el envío. ---
+        const senderInfoText = document.getElementById('senderInfoText');
+        const loadSenderInfo = () => {
+            const cached = Cache.get('sender-info', 30 * 60 * 1000);
+            const paint = (info) => {
+                if (!info || !senderInfoText) { if (senderInfoText) senderInfoText.textContent = ''; return; }
+                senderInfoText.innerHTML = info.aliasAvailable
+                    ? `El correo saldrá desde <strong>${info.alias}</strong> y las respuestas del cliente llegarán a tu correo.`
+                    : `El correo saldrá desde la cuenta del sistema (el alias <strong>${info.alias}</strong> aún no está configurado). Las respuestas llegarán a tu correo.`;
+            };
+            if (cached) { paint(cached.data); return; }
+            google.script.run
+                .withSuccessHandler(info => { if (info) { Cache.set('sender-info', info); paint(info); } })
+                .withFailureHandler(() => { if (senderInfoText) senderInfoText.textContent = ''; })
+                .getMailSenderInfo();
+        };
+        // Si el servidor aún no trae getMailSenderInfo (despliegue viejo), esto no debe
+        // detener el resto de la pantalla.
+        try { loadSenderInfo(); } catch (e) { console.warn('Info de remitente no disponible:', e); }
+
+        // --- Funciones de UI ---
+        const setButtonLoadingState = (button, isLoading, text = 'Cargando...') => {
+            if (!button) return;
+            const textEl = button.querySelector('.button-text');
+            const iconEl = button.querySelector('.button-icon');
+
+            if (isLoading) {
+                if (textEl && !button.dataset.originalText) button.dataset.originalText = textEl.textContent;
+                if (iconEl && !button.dataset.originalIcon) button.dataset.originalIcon = iconEl.innerHTML;
+
+                if (textEl) textEl.textContent = text;
+                if (iconEl) iconEl.innerHTML = '<div class="v-spinner"></div>';
+                button.disabled = true;
+            } else {
+                if (textEl && button.dataset.originalText) textEl.textContent = button.dataset.originalText;
+                if (iconEl && button.dataset.originalIcon) iconEl.innerHTML = button.dataset.originalIcon;
+                button.disabled = false;
+            }
+        };
+
+        const showAlert = (message, type = 'success') => {
+            AppMotion.toast(message, type === 'success' ? 'ok' : 'error');
+        };
+
+        const resetForm = () => {
+            emailFields.disabled = true;
+            sendButton.disabled = true;
+            viewQuoteButton.disabled = true;
+            emailForm.reset();
+            folioInput.value = '';
+            quoteDataStatus.classList.add('hidden');
+            step1Chip.classList.remove('done');
+            step1Chip.textContent = '1';
+            loadedQuoteData = null;
+        };
+
+        // --- Lógica Principal ---
+        const handleSearchQuote = (e) => {
+            if (e && e.preventDefault) e.preventDefault();
+            const folio = folioInput.value.trim();
+            if (!folio) {
+                showAlert("Por favor, ingresa un número de folio.", "error");
+                AppMotion.shake(folioInput);
+                return;
+            }
+
+            setButtonLoadingState(searchQuoteButton, true, 'Buscando...');
+            quoteDataStatus.classList.add('hidden');
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    setButtonLoadingState(searchQuoteButton, false);
+                    if (response.success) {
+                        loadedQuoteData = response.data;
+                        quoteDataStatus.innerHTML = `
+                            <span class="font-bold text-green-700">✓ Datos Cargados:</span>
+                            Cotización <strong>${loadedQuoteData.folio}</strong> para <strong>${loadedQuoteData.clientName}</strong>.
+                        `;
+                        quoteDataStatus.classList.remove('hidden');
+                        AppMotion.pop(quoteDataStatus);
+                        step1Chip.classList.add('done');
+                        step1Chip.textContent = '✓';
+
+                        recipientInput.value = loadedQuoteData.clientEmail;
+                        subjectInput.value = `Cotización de Servicios Ventel - Folio ${loadedQuoteData.folio}`;
+                        bodyInput.value = `Estimado(a) ${loadedQuoteData.clientName},\n\nJunto con saludar, y como seguimiento a nuestra conversación, le hago llegar la cotización solicitada con folio ${loadedQuoteData.folio}.\n\nQuedo a sus órdenes para cualquier duda o aclaración.\n\nSaludos cordiales,`;
+
+                        loadEmailFormats(urlFormat || loadedQuoteData.format);
+
+                        emailFields.disabled = false;
+                        sendButton.disabled = false;
+                        viewQuoteButton.disabled = false;
+                        AppMotion.enter(emailForm);
+                    } else {
+                        showAlert(response.message, "error");
+                        resetForm();
+                    }
+                })
+                .withFailureHandler(error => {
+                    setButtonLoadingState(searchQuoteButton, false);
+                    showAlert("Error de comunicación al buscar la cotización.", "error");
+                    console.error("Error en getQuoteDetailsForEmail:", error);
+                })
+                .getQuoteDetailsForEmail(folio);
+        };
+
+        const handleSendEmail = (e) => {
+            e.preventDefault();
+            if (!loadedQuoteData || !emailForm.checkValidity()) {
+                showAlert("Por favor, completa todos los campos requeridos.", "error");
+                return;
+            }
+            if (!formatSelect.value) {
+                showAlert("Elige el formato del PDF antes de enviar.", "error");
+                AppMotion.shake(formatSelect);
+                return;
+            }
+
+            setButtonLoadingState(sendButton, true, 'Enviando...');
+            const emailData = {
+                to: recipientInput.value,
+                subject: subjectInput.value,
+                body: bodyInput.value, // El cuerpo del mensaje escrito por el usuario
+                folio: loadedQuoteData.folio,
+                format: formatSelect.value
+            };
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    setButtonLoadingState(sendButton, false);
+                    if (response.success) {
+                        const from = response.sentFrom ? ` desde ${response.sentFrom}` : '';
+                        showAlert(`Correo del folio ${emailData.folio} enviado${from}.`, "success");
+                        resetForm();
+                    } else {
+                        showAlert(response.message, "error");
+                    }
+                })
+                .withFailureHandler(error => {
+                    setButtonLoadingState(sendButton, false);
+                    showAlert("Error de comunicación al enviar el correo.", "error");
+                    console.error("Error en sendQuoteByEmail:", error);
+                })
+                .sendQuoteByEmail(emailData);
+        };
+
+        // --- Event Listeners ---
+        searchQuoteForm.addEventListener('submit', handleSearchQuote);
+        emailForm.addEventListener('submit', handleSendEmail);
+        backButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Vuelve al inicio que corresponde al rol (dashboard o panel de supervisión).
+            AppUrl.goHome();
+        });
+        viewQuoteButton.addEventListener('click', () => {
+            if (!loadedQuoteData) return;
+            AppUrl.go('consulta_cotizacion', { folio: loadedQuoteData.folio });
+        });
+
+        // --- Auto-búsqueda si se proporciona Folio por la URL ---
+        if (urlFolio) {
+            folioInput.value = urlFolio;
+            handleSearchQuote();
+        }
+    });
+    </script>
+</body>
+</html>
