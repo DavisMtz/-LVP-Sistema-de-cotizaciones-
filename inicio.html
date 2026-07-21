@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema de Cotizaciones Ventel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 'brand-pink': '#E10098', 'brand-pink-dark': '#b8007c' } } }
+        }
+    </script>
+    <?!= include('app_theme'); ?>
+</head>
+<body class="h-full">
+    <div class="app-aurora"></div>
+
+    <nav id="navbar" class="v-nav">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <img src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool" class="h-8 bg-brand-pink p-1 rounded-md shadow-sm">
+                    <span class="font-bold text-xl text-brand-pink tracking-tight hidden sm:inline">Ventel</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-slate-600 hidden md:inline">
+                        Bienvenido, <strong id="user-name" class="font-medium text-slate-800">Usuario</strong>
+                    </span>
+                    <button id="logoutButton" class="v-btn v-btn-ghost v-btn-sm">
+                        <span class="button-icon"><span class="w-5 h-5 block" data-icon="logout"></span></span>
+                        <span class="button-text hidden sm:inline">Salir</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Cabecera -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight" data-animate>
+                Sistema de Cotizaciones Ventel
+            </h1>
+            <p class="text-slate-600 mt-1" data-animate>
+                Gestiona y da seguimiento a todas tus cotizaciones en un solo lugar.
+            </p>
+        </header>
+
+        <!-- Acciones -->
+        <section class="mb-8 p-6 v-card" data-animate>
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <button id="newQuoteButton" class="v-btn v-btn-primary">
+                        <span class="button-icon"><span class="w-5 h-5 block" data-icon="plus"></span></span>
+                        <span class="button-text">Nueva Cotización</span>
+                    </button>
+                    <button id="sendEmailButton" class="v-btn v-btn-dark">
+                        <span class="button-icon"><span class="w-5 h-5 block" data-icon="mail"></span></span>
+                        <span class="button-text">Enviar Correo</span>
+                    </button>
+                </div>
+                <div class="flex-grow md:max-w-sm">
+                    <form id="searchForm" class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="w-5 h-5 block text-slate-400" data-icon="search"></span>
+                        </div>
+                        <input type="search" id="searchInput" name="search" placeholder="Filtra tus cotizaciones; Enter busca en todo el sistema" class="v-input" style="padding-left: 2.5rem;">
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Resumen proactivo + estado de sincronización -->
+        <section class="mb-4 flex flex-wrap items-center justify-between gap-3" data-animate>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="v-badge v-badge-pink">Tus cotizaciones: <strong id="stat-total" class="ml-1">0</strong></span>
+                <span class="v-badge v-badge-green">Enviadas: <strong id="stat-sent" class="ml-1">0</strong></span>
+                <span class="v-badge v-badge-yellow">Por enviar: <strong id="stat-pending" class="ml-1">0</strong></span>
+                <span class="v-badge v-badge-blue">Este mes: <strong id="stat-month" class="ml-1">0</strong></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="sync-status" class="text-xs text-slate-500"></span>
+                <button id="refreshButton" class="v-btn v-btn-ghost v-btn-sm" title="Volver a cargar desde el servidor">
+                    <span class="button-icon"><span class="w-4 h-4 block" data-icon="refresh"></span></span>
+                    <span class="button-text">Actualizar</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Tabla de Cotizaciones -->
+        <section data-animate>
+            <div class="v-card overflow-hidden">
+                <div class="v-table-wrap">
+                    <table class="v-table">
+                        <thead>
+                            <tr>
+                                <th>Folio</th><th>Cliente</th><th>Fecha</th><th>Total</th><th>Estatus</th><th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quotes-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="table-placeholder" class="text-center p-12 text-slate-500"></div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12" data-animate>
+            <p class="text-sm text-slate-500">¿Necesitas ayuda? <button type="button" data-support-link class="font-medium text-brand-pink hover:underline">Contacta al equipo de Ventel</button></p>
+        </footer>
+    </main>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <?!= include('app_support'); ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!requireSession()) return;
+
+        const mainContent = document.getElementById('main-content');
+        const userNameElement = document.getElementById('user-name');
+        const tableBody = document.getElementById('quotes-table-body');
+        const tablePlaceholder = document.getElementById('table-placeholder');
+        const quoteTable = tableBody.closest('table');
+        const logoutButton = document.getElementById('logoutButton');
+        const newQuoteButton = document.getElementById('newQuoteButton');
+        const sendEmailButton = document.getElementById('sendEmailButton');
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+
+        const currentUserEmail = AppSession.userEmail;
+        userNameElement.textContent = AppSession.firstName;
+
+        const setUIInteractionState = (isLocked) => {
+            const interactiveElements = [newQuoteButton, sendEmailButton, logoutButton, searchInput, ...document.querySelectorAll('.v-row-action')];
+            interactiveElements.forEach(el => { if (el) el.disabled = isLocked; });
+            mainContent.style.pointerEvents = isLocked ? 'none' : '';
+        };
+
+        const setButtonLoadingState = (button, isLoading) => {
+            if (!button) return;
+            const textEl = button.querySelector('.button-text');
+            const iconEl = button.querySelector('.button-icon');
+            if (isLoading) {
+                if (textEl && !button.dataset.originalText) button.dataset.originalText = textEl.textContent;
+                if (iconEl && !button.dataset.originalIcon) button.dataset.originalIcon = iconEl.innerHTML;
+                if (textEl) textEl.textContent = 'Cargando...';
+                if (iconEl) iconEl.innerHTML = '<div class="v-spinner"></div>';
+            } else {
+                if (textEl && button.dataset.originalText) textEl.textContent = button.dataset.originalText;
+                if (iconEl && button.dataset.originalIcon) iconEl.innerHTML = button.dataset.originalIcon;
+            }
+        };
+
+        const navigateToPage = (page, params = {}, buttonElement = null) => {
+            setUIInteractionState(true);
+            if (buttonElement) setButtonLoadingState(buttonElement, true);
+            if (!AppUrl.go(page, params)) {
+                setUIInteractionState(false);
+                if (buttonElement) setButtonLoadingState(buttonElement, false);
+            }
+        };
+
+        window.navigateToQuoteView = function (folio) {
+            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            try { localStorage.setItem('selectedQuoteFolio', folio); } catch (e) { console.error('Error al guardar folio:', e); }
+            navigateToPage('consulta_cotizacion', { folio: folio }, this);
+        };
+
+        window.navigateToQuoteEdit = function (folio) {
+            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            navigateToPage('cotizacion', { folio: folio, action: 'edit' }, this);
+        };
+
+        window.navigateToResend = function (folio) {
+            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+            navigateToPage('correoventel', { folio: folio }, this);
+        };
+
+        window.openQuoteInSheets = function (folio) {
+            if (!folio) return AppMotion.toast('Error: Folio no disponible.', 'error');
+
+            const button = this;
+            // La pestaña se abre aquí, durante el clic. Si se abriera al llegar la respuesta
+            // del servidor, el navegador la bloquearía por ser un popup sin interacción.
+            const tab = window.open('', '_blank');
+            setButtonLoadingState(button, true);
+            button.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    setButtonLoadingState(button, false);
+                    button.disabled = false;
+                    if (response && response.success) {
+                        if (tab) {
+                            tab.location.href = response.url;
+                        } else {
+                            AppMotion.toast('El navegador bloqueó la pestaña nueva. Permite las ventanas emergentes para este sitio e intenta de nuevo.', 'warn');
+                        }
+                    } else {
+                        if (tab) tab.close();
+                        AppMotion.toast((response && response.message) || 'No se pudo abrir el documento.', 'error');
+                    }
+                })
+                .withFailureHandler(error => {
+                    setButtonLoadingState(button, false);
+                    button.disabled = false;
+                    if (tab) tab.close();
+                    AppMotion.toast('Error al abrir el documento en Sheets: ' + error.message, 'error');
+                })
+                .openQuoteInSheets(folio);
+        };
+
+        // --- Datos locales: las cotizaciones propias se guardan en caché para pintar
+        //     la tabla al instante y se revalidan SIEMPRE contra el servidor. ---
+        // Tolerancia a despliegues parciales: si el app_core cargado aún no trae
+        // AppCache, la pantalla funciona igual, solo sin caché local.
+        const AppCache = window.AppCache || { get: () => null, set: () => {}, remove: () => {}, ageLabel: () => '' };
+        const QUOTES_CACHE_KEY = 'quotes-' + currentUserEmail;
+        const syncStatus = document.getElementById('sync-status');
+        const refreshButton = document.getElementById('refreshButton');
+        let myQuotes = []; // Última lista propia conocida (para filtrar sin red y calcular el resumen).
+
+        const setSyncStatus = (text) => { if (syncStatus) syncStatus.textContent = text; };
+
+        const updateStats = (quotes) => {
+            const isSent = (q) => String(q.estatus || '').toLowerCase().includes('enviada');
+            // El folio LVP-AAMMDD-XXXX codifica la fecha: el prefijo del mes es exacto.
+            const now = new Date();
+            const monthPrefix = 'LVP-' + String(now.getFullYear()).slice(-2) + String(now.getMonth() + 1).padStart(2, '0');
+            const thisMonth = quotes.filter(q => String(q.folio || '').startsWith(monthPrefix)).length;
+            document.getElementById('stat-total').textContent = quotes.length;
+            document.getElementById('stat-sent').textContent = quotes.filter(isSent).length;
+            document.getElementById('stat-pending').textContent = quotes.filter(q => !isSent(q)).length;
+            document.getElementById('stat-month').textContent = thisMonth;
+        };
+
+        const loadUserQuotes = (searchTerm = null) => {
+            const isOwnList = !searchTerm;
+
+            // 1. Primer pintado instantáneo desde la caché local (solo para la lista propia).
+            const cached = isOwnList ? AppCache.get(QUOTES_CACHE_KEY) : null;
+            if (cached && Array.isArray(cached.data)) {
+                myQuotes = cached.data;
+                displayQuotes(myQuotes);
+                updateStats(myQuotes);
+                setSyncStatus('Datos guardados ' + AppCache.ageLabel(cached.at) + ' · actualizando...');
+            } else {
+                const loadingMessage = searchTerm ? 'Buscando en todo el sistema...' : 'Cargando tus cotizaciones...';
+                updateTablePlaceholder(`<div class="flex items-center justify-center gap-3 text-slate-500"><div class="v-spinner"></div> ${loadingMessage}</div>`);
+                setSyncStatus('');
+            }
+
+            // 2. Revalidación contra el servidor (siempre).
+            google.script.run
+                .withSuccessHandler(response => {
+                    if (!response.success && response.message) AppMotion.toast(response.message, 'error');
+                    const quotes = response.success ? (response.quotes || []) : [];
+                    if (isOwnList) {
+                        myQuotes = quotes;
+                        AppCache.set(QUOTES_CACHE_KEY, quotes);
+                        updateStats(quotes);
+                        setSyncStatus('Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
+                        // Si el usuario ya está filtrando localmente, se respeta su filtro.
+                        const term = searchInput.value.trim();
+                        if (term) { filterLocal(term); return; }
+                    } else {
+                        setSyncStatus('Resultados de búsqueda global');
+                    }
+                    displayQuotes(quotes);
+                })
+                .withFailureHandler(error => {
+                    console.error("Fallo en la llamada a getQuotesForUser:", error);
+                    if (cached) {
+                        setSyncStatus('Sin conexión · mostrando datos guardados ' + AppCache.ageLabel(cached.at));
+                        AppMotion.toast('No se pudo actualizar desde el servidor; se muestran los datos guardados.', 'warn');
+                    } else {
+                        updateTablePlaceholder("Error de comunicación al cargar cotizaciones.");
+                    }
+                })
+                .getQuotesForUser(currentUserEmail, searchTerm);
+        };
+
+        // Filtro instantáneo (sin red) sobre las cotizaciones propias ya cargadas.
+        const filterLocal = (term) => {
+            const t = term.toLowerCase();
+            const filtered = myQuotes.filter(q =>
+                String(q.folio || '').toLowerCase().includes(t) ||
+                String(q.cliente || '').toLowerCase().includes(t) ||
+                String(q.estatus || '').toLowerCase().includes(t)
+            );
+            displayQuotes(filtered, 'Sin coincidencias entre tus cotizaciones. Presiona Enter para buscar en todo el sistema.');
+        };
+
+        const STATUS_CLASSES = {
+            'autorizada': 'v-badge-green',
+            'enviada-por-correo': 'v-badge-green',
+            'rechazada': 'v-badge-red',
+            'en-revision': 'v-badge-yellow',
+            'folio-generado': 'v-badge-yellow',
+            'default': 'v-badge-blue'
+        };
+
+        const escapeFolio = (folio) => String(folio || '').replace(/'/g, "\\'");
+
+        const displayQuotes = (quotes, emptyMessage = null) => {
+            tableBody.innerHTML = '';
+            if (quotes.length === 0) {
+                const message = emptyMessage || (searchInput.value.trim() ? "No se encontraron cotizaciones para tu búsqueda." : "Aún no tienes cotizaciones. ¡Crea una nueva!");
+                updateTablePlaceholder(message);
+                return;
+            }
+            updateTablePlaceholder("");
+
+            quotes.forEach(quote => {
+                const row = document.createElement('tr');
+                row.style.opacity = '0';
+                const estatusLower = String(quote.estatus || '').toLowerCase().replace(/\s+/g, '-');
+                const folioJs = escapeFolio(quote.folio);
+
+                row.innerHTML = `
+                    <td class="font-medium text-slate-900">${quote.folio || 'N/A'}</td>
+                    <td>${quote.cliente || 'N/A'}</td>
+                    <td>${quote.fecha || 'N/A'}</td>
+                    <td class="font-medium">${formatMoney(quote.total)}</td>
+                    <td>
+                        <span class="v-badge ${STATUS_CLASSES[estatusLower] || STATUS_CLASSES.default}">${quote.estatus || 'Pendiente'}</span>
+                    </td>
+                    <td>
+                        <div class="flex items-center justify-center gap-1 flex-wrap">
+                            <button onclick="navigateToQuoteView.call(this, '${folioJs}')" title="Ver la cotización" class="v-row-action v-act-pink">
+                                ${Icons.svg('eye')}
+                                Ver
+                            </button>
+                            <button onclick="navigateToQuoteEdit.call(this, '${folioJs}')" title="Editar y volver a cotizar" class="v-row-action v-act-blue">
+                                ${Icons.svg('pencil')}
+                                Editar
+                            </button>
+                            <button onclick="navigateToResend.call(this, '${folioJs}')" title="Enviar o reenviar por correo" class="v-row-action v-act-slate">
+                                ${Icons.svg('send')}
+                                Correo
+                            </button>
+                            ${quote.formato === 'ccl_liverpool' ? `
+                            <button onclick="openQuoteInSheets.call(this, '${folioJs}')" title="Abrir el formato CCL en Google Sheets" class="v-row-action v-act-green">
+                                ${Icons.svg('document')}
+                                Sheets
+                            </button>` : ''}
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            AppMotion.staggerRows(tableBody.querySelectorAll('tr'));
+        };
+
+        const updateTablePlaceholder = (message) => {
+            tablePlaceholder.innerHTML = message;
+            const showPlaceholder = message !== "";
+            tablePlaceholder.classList.toggle('hidden', !showPlaceholder);
+            quoteTable.classList.toggle('hidden', showPlaceholder);
+        };
+
+        newQuoteButton.addEventListener('click', () => navigateToPage('cotizacion', {}, newQuoteButton));
+        sendEmailButton.addEventListener('click', () => navigateToPage('correoventel', {}, sendEmailButton));
+
+        logoutButton.addEventListener('click', () => {
+            AppSession.clear();
+            navigateToPage('login', {}, logoutButton);
+        });
+
+        // Enter = búsqueda global en el servidor (todas las cotizaciones del sistema).
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const term = searchInput.value.trim();
+            if (term) loadUserQuotes(term);
+        });
+
+        // Teclear = filtro instantáneo local sobre tus cotizaciones (sin esperar al servidor).
+        searchInput.addEventListener('input', () => {
+            const term = searchInput.value.trim();
+            if (term === '') {
+                displayQuotes(myQuotes);
+                updateStats(myQuotes);
+            } else {
+                filterLocal(term);
+            }
+        });
+
+        refreshButton.addEventListener('click', () => {
+            AppCache.remove(QUOTES_CACHE_KEY);
+            searchInput.value = '';
+            loadUserQuotes();
+        });
+
+        loadUserQuotes();
+    });
+    </script>
+</body>
+</html>
