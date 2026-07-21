@@ -1,0 +1,143 @@
+<script>
+/**
+ * =====================================================================================
+ * NÚCLEO COMPARTIDO | Sistema de cotizaciones Ventel
+ * =====================================================================================
+ * Se incluye en cada pantalla con el scriptlet include('app_core') DESPUÉS de definir:
+ *   window.__APP__ = { baseUrl: ..., folio: ... };  (valores inyectados por el servidor)
+ *
+ * Expone tres piezas:
+ *   AppUrl     -> modelo único de construcción de URLs (?page=...&param=...).
+ *   AppSession -> lectura segura de la sesión guardada en localStorage.
+ *   requireSession() -> guardia: si no hay sesión, redirige a login.
+ */
+(function () {
+  const cfg = window.__APP__ || {};
+
+  const PAGE_HOME_NORMAL = 'dashboard';
+  const PAGE_HOME_ADVANCED = 'inicio_avanzado';
+
+  const AppSession = {
+    get userName() { try { return localStorage.getItem('userName') || ''; } catch (e) { return ''; } },
+    get userEmail() { try { return localStorage.getItem('userEmail') || ''; } catch (e) { return ''; } },
+    get isAdvanced() { try { return localStorage.getItem('isAdvanced') === 'true'; } catch (e) { return false; } },
+    get firstName() { return (this.userName || 'Usuario').split(' ')[0]; },
+    isLoggedIn: function () { return !!this.userEmail; },
+    save: function (data) {
+      try {
+        localStorage.setItem('userName', data.userName || '');
+        localStorage.setItem('userEmail', data.userEmail || '');
+        localStorage.setItem('isAdvanced', String(data.isAdvanced === true));
+      } catch (e) { console.error('No se pudo guardar la sesión:', e); }
+    },
+    clear: function () { try { localStorage.clear(); } catch (e) {} }
+  };
+
+  const AppUrl = {
+    base: cfg.baseUrl || '',
+
+    /** Construye la URL completa de una página con sus parámetros. */
+    build: function (page, params) {
+      if (!this.base) return null;
+      const search = new URLSearchParams();
+      search.set('page', page);
+      Object.keys(params || {}).forEach(function (key) {
+        const value = params[key];
+        if (value !== '' && value !== null && value !== undefined) search.set(key, value);
+      });
+      return this.base + '?' + search.toString();
+    },
+
+    /** Navega (rompiendo el iframe de Apps Script con window.top). */
+    go: function (page, params) {
+      const url = this.build(page, params);
+      if (!url) {
+        alert('No se pudo determinar la URL de la aplicación. Recarga la página e intenta de nuevo.');
+        return false;
+      }
+      window.top.location.href = url;
+      return true;
+    },
+
+    /** Página de inicio que corresponde al rol del usuario. */
+    homePage: function () { return AppSession.isAdvanced ? PAGE_HOME_ADVANCED : PAGE_HOME_NORMAL; },
+    goHome: function (params) { return this.go(this.homePage(), params); },
+
+    /**
+     * Lee un parámetro: primero el inyectado por el servidor al renderizar
+     * (fuente más confiable dentro del sandbox), luego la URL del iframe.
+     */
+    param: function (name) {
+      if (cfg[name]) return String(cfg[name]);
+      try { return new URLSearchParams(window.location.search).get(name) || ''; } catch (e) { return ''; }
+    }
+  };
+
+  /** Redirige a login cuando no hay sesión. Devuelve true si se puede continuar. */
+  function requireSession() {
+    if (AppSession.isLoggedIn()) return true;
+    AppUrl.go('login');
+    return false;
+  }
+
+  /** Formato de moneda MXN, compartido por todas las pantallas. */
+  function formatMoney(amount) {
+    const n = parseFloat(amount);
+    return (isNaN(n) ? 0 : n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+  }
+
+  /**
+   * Caché local (localStorage) para pintar datos al instante mientras se
+   * revalida contra el servidor ("stale-while-revalidate"). Cada entrada
+   * guarda { at: epoch_ms, data }. Nunca sustituye la consulta al servidor:
+   * solo acelera el primer render.
+   */
+  const AppCache = {
+    _key: function (name) { return 'ventel-cache-' + name; },
+
+    /** Devuelve { data, ageMs, at } o null si no hay entrada válida. */
+    get: function (name, maxAgeMs) {
+      try {
+        const raw = localStorage.getItem(this._key(name));
+        if (!raw) return null;
+        const entry = JSON.parse(raw);
+        if (!entry || typeof entry.at !== 'number') return null;
+        const ageMs = Date.now() - entry.at;
+        if (maxAgeMs && ageMs > maxAgeMs) return null;
+        return { data: entry.data, ageMs: ageMs, at: entry.at };
+      } catch (e) { return null; }
+    },
+
+    set: function (name, data) {
+      try {
+        localStorage.setItem(this._key(name), JSON.stringify({ at: Date.now(), data: data }));
+      } catch (e) {
+        // Si el almacenamiento está lleno se limpia solo la caché, nunca la sesión.
+        try {
+          Object.keys(localStorage)
+            .filter(function (k) { return k.indexOf('ventel-cache-') === 0; })
+            .forEach(function (k) { localStorage.removeItem(k); });
+        } catch (e2) {}
+      }
+    },
+
+    remove: function (name) { try { localStorage.removeItem(this._key(name)); } catch (e) {} },
+
+    /** Texto amigable de antigüedad: "hace unos segundos", "hace 5 min", etc. */
+    ageLabel: function (at) {
+      const mins = Math.floor((Date.now() - at) / 60000);
+      if (mins < 1) return 'hace unos segundos';
+      if (mins === 1) return 'hace 1 minuto';
+      if (mins < 60) return 'hace ' + mins + ' minutos';
+      const hrs = Math.floor(mins / 60);
+      return hrs === 1 ? 'hace 1 hora' : 'hace ' + hrs + ' horas';
+    }
+  };
+
+  window.AppSession = AppSession;
+  window.AppUrl = AppUrl;
+  window.requireSession = requireSession;
+  window.formatMoney = formatMoney;
+  window.AppCache = AppCache;
+})();
+</script>
