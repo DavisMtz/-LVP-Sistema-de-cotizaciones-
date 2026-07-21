@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Supervisión - Sistema de Cotizaciones Ventel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 'brand-pink': '#E10098', 'brand-pink-dark': '#b8007c' } } }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <?!= include('app_theme'); ?>
+    <style>
+        /* Interruptor de formatos */
+        .v-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+        .v-switch input { position: absolute; opacity: 0; pointer-events: none; }
+        .v-switch .track { width: 2.75rem; height: 1.5rem; background: #cbd5e1; border-radius: 999px; transition: background-color .25s ease; }
+        .v-switch input:checked + .track { background: var(--brand); }
+        .v-switch .thumb { position: absolute; left: .25rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; background: #fff; border-radius: 999px; transition: transform .25s cubic-bezier(.34,1.56,.64,1); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+        .v-switch input:checked ~ .thumb { transform: translate(1.25rem, -50%); }
+        .v-switch input:disabled ~ .track { opacity: .5; }
+    </style>
+</head>
+<body class="h-full text-slate-800">
+    <div class="app-aurora"></div>
+
+    <nav class="v-nav">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <img src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo" class="h-8 bg-brand-pink p-1 rounded-md shadow-sm">
+                    <span class="font-bold text-xl text-brand-pink tracking-tight hidden sm:inline">Ventel</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-slate-600 hidden md:inline">Bienvenido, <strong id="user-name" class="font-medium">Usuario</strong></span>
+                    <button id="logoutButton" class="v-btn v-btn-ghost v-btn-sm">
+                        <span class="w-5 h-5 block" data-icon="logout"></span>
+                        <span class="hidden sm:inline">Salir</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 tracking-tight" data-animate>Panel de Supervisión Ventel</h1>
+                <p class="text-slate-600 mt-1" data-animate>Métricas del equipo, reportes y administración de todas las cotizaciones.</p>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap" data-animate>
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+                    <svg class="h-1.5 w-1.5 fill-green-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" /></svg>
+                    Usuario Avanzado
+                </span>
+                <button id="newQuoteButton" class="v-btn v-btn-primary v-btn-sm">
+                    <span class="w-4 h-4 block" data-icon="plus"></span>
+                    Nueva Cotización
+                </button>
+                <button id="sendEmailButton" class="v-btn v-btn-dark v-btn-sm">
+                    <span class="w-4 h-4 block" data-icon="mail"></span>
+                    Enviar Correo
+                </button>
+            </div>
+        </header>
+
+        <div id="loading-placeholder" class="text-center p-12 text-slate-500"><div class="flex items-center justify-center gap-3"><div class="v-spinner w-6 h-6"></div> Cargando estadísticas...</div></div>
+
+        <div id="dashboard-content" class="hidden">
+            <!-- KPIs -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="v-card v-card-hover p-6" data-animate>
+                    <h3 class="text-sm font-medium text-slate-500">Cotizaciones este Mes</h3>
+                    <p id="kpi-monthly-count" class="mt-1 v-kpi-value">0</p>
+                    <p id="kpi-monthly-comparison" class="text-xs text-slate-500 mt-1">vs 0 el mes pasado</p>
+                </div>
+                <div class="v-card v-card-hover p-6" data-animate>
+                    <h3 class="text-sm font-medium text-slate-500">Monto Cotizado (Mes)</h3>
+                    <p id="kpi-monthly-amount" class="mt-1 v-kpi-value">$0</p>
+                    <p class="text-xs text-slate-500 mt-1">Suma de totales del mes actual</p>
+                </div>
+                <div class="v-card v-card-hover p-6" data-animate>
+                    <h3 class="text-sm font-medium text-slate-500">Actividad (Últ. 7 días)</h3>
+                    <p id="kpi-weekly-count" class="mt-1 v-kpi-value">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Cotizaciones generadas</p>
+                </div>
+                <div class="v-card v-card-hover p-6" data-animate>
+                    <h3 class="text-sm font-medium text-slate-500">Actividad (Hoy)</h3>
+                    <p id="kpi-today-count" class="mt-1 v-kpi-value">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Cotizaciones generadas</p>
+                </div>
+            </section>
+
+            <!-- Gráfico y actividad -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="v-card p-6" data-animate>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Cotizaciones por Asesor (Mes Actual)</h3>
+                    <div id="pie-chart-container" class="relative h-64 md:h-80"><canvas id="userPieChart"></canvas></div>
+                </div>
+                <div class="space-y-6" data-animate>
+                    <div class="v-card p-4"><h3 class="font-semibold text-slate-800 mb-2 px-2">Actividad de Hoy</h3><div class="max-h-48 overflow-y-auto"><table class="w-full text-sm"><tbody id="table-today-body"></tbody></table></div></div>
+                    <div class="v-card p-4"><h3 class="font-semibold text-slate-800 mb-2 px-2">Actividad Últimos 7 Días</h3><div class="max-h-48 overflow-y-auto"><table class="w-full text-sm"><tbody id="table-week-body"></tbody></table></div></div>
+                </div>
+            </section>
+
+            <!-- ============ SUPERVISIÓN DE COTIZACIONES ============ -->
+            <section class="mb-8" data-animate>
+                <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+                    <div>
+                        <h3 class="text-xl font-semibold text-slate-800">Supervisión de Cotizaciones</h3>
+                        <p class="text-sm text-slate-500">Busca, filtra por fechas y descarga el reporte de todo el equipo.</p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <button id="clearFiltersButton" class="v-btn v-btn-ghost v-btn-sm">
+                            <span class="w-4 h-4 block" data-icon="refresh"></span>
+                            Limpiar filtros
+                        </button>
+                        <button id="downloadReportButton" class="v-btn v-btn-success v-btn-sm">
+                            <span class="button-icon"><span class="w-4 h-4 block" data-icon="download"></span></span>
+                            <span class="button-text">Descargar Reporte (CSV)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="v-card p-5 mb-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+                        <div class="lg:col-span-2">
+                            <label class="v-label" for="sup-search">Buscar</label>
+                            <input type="search" id="sup-search" class="v-input" placeholder="Folio, cliente, correo o asesor...">
+                        </div>
+                        <div>
+                            <label class="v-label" for="sup-date-from">Desde</label>
+                            <input type="date" id="sup-date-from" class="v-input">
+                        </div>
+                        <div>
+                            <label class="v-label" for="sup-date-to">Hasta</label>
+                            <input type="date" id="sup-date-to" class="v-input">
+                        </div>
+                        <div>
+                            <label class="v-label" for="sup-status">Estatus</label>
+                            <select id="sup-status" class="v-select"><option value="">Todos</option></select>
+                        </div>
+                        <div>
+                            <label class="v-label" for="sup-advisor">Asesor</label>
+                            <select id="sup-advisor" class="v-select"><option value="">Todos</option></select>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <div>
+                                <label class="v-label" for="sup-format" style="margin-bottom:.2rem;">Formato</label>
+                                <select id="sup-format" class="v-select" style="width:auto; min-width: 10rem;"><option value="">Todos</option></select>
+                            </div>
+                        </div>
+                        <div id="sup-summary" class="text-sm text-slate-600 font-medium"></div>
+                    </div>
+                </div>
+
+                <!-- Tabla de supervisión -->
+                <div class="v-card overflow-hidden">
+                    <div class="v-table-wrap">
+                        <table class="v-table">
+                            <thead>
+                                <tr>
+                                    <th>Folio</th><th>Fecha</th><th>Asesor</th><th>Cliente</th><th>Total</th><th>Estatus</th><th>Formato</th><th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sup-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div id="sup-placeholder" class="text-center p-10 text-slate-500 hidden"></div>
+                    <div id="sup-cap-note" class="text-center text-xs text-slate-400 py-3 hidden"></div>
+                </div>
+            </section>
+
+            <!-- Administración de Formatos -->
+            <section class="mb-8" data-animate>
+                <h3 class="text-xl font-semibold text-slate-800 mb-1">Formatos de Cotización</h3>
+                <p class="text-sm text-slate-500 mb-4">Controla qué formatos pueden elegir los asesores al cotizar. Debe quedar al menos uno habilitado.</p>
+                <div id="formats-admin" class="v-card divide-y divide-slate-200">
+                    <div class="p-6 text-sm text-slate-500 flex items-center gap-3"><div class="v-spinner w-4 h-4"></div> Cargando formatos...</div>
+                </div>
+            </section>
+        </div>
+        <footer class="text-center mt-12"><p class="text-sm text-slate-500">¿Necesitas ayuda? <button type="button" data-support-link class="font-medium text-brand-pink hover:underline">Contacta al equipo de Ventel</button></p></footer>
+    </main>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <?!= include('app_support'); ?>
+    <script>
+        // --- Navegación (modelo compartido de URLs) ---
+        window.navigateToQuoteView = function (folio) {
+            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            try { localStorage.setItem('selectedQuoteFolio', folio); } catch (e) {}
+            AppUrl.go('consulta_cotizacion', { folio: folio });
+        };
+        window.navigateToQuoteEdit = function (folio) {
+            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            AppUrl.go('cotizacion', { folio: folio, action: 'edit' });
+        };
+        window.navigateToResend = function (folio) {
+            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            AppUrl.go('correoventel', { folio: folio });
+        };
+        window.openQuoteInSheets = function (folio) {
+            if (!folio) return AppMotion.toast('Error: no se pudo obtener el folio.', 'error');
+            // La pestaña se abre durante el clic para que el navegador no la trate como popup.
+            const tab = window.open('', '_blank');
+            google.script.run
+                .withSuccessHandler(response => {
+                    if (response && response.success) {
+                        if (tab) tab.location.href = response.url;
+                        else AppMotion.toast('El navegador bloqueó la pestaña nueva. Permite las ventanas emergentes e intenta de nuevo.', 'warn');
+                    } else {
+                        if (tab) tab.close();
+                        AppMotion.toast((response && response.message) || 'No se pudo abrir el documento.', 'error');
+                    }
+                })
+                .withFailureHandler(error => {
+                    if (tab) tab.close();
+                    AppMotion.toast('Error al abrir el documento en Sheets: ' + error.message, 'error');
+                })
+                .openQuoteInSheets(folio);
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireSession()) return;
+
+            const currentUserEmail = AppSession.userEmail;
+            document.getElementById('user-name').textContent = AppSession.firstName;
+
+            const loadingPlaceholder = document.getElementById('loading-placeholder');
+            const dashboardContent = document.getElementById('dashboard-content');
+
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                AppSession.clear();
+                AppUrl.go('login');
+            });
+            document.getElementById('newQuoteButton').addEventListener('click', () => AppUrl.go('cotizacion'));
+            document.getElementById('sendEmailButton').addEventListener('click', () => AppUrl.go('correoventel'));
+
+            // ==========================================================
+            // ESTADÍSTICAS (KPIs, gráfico, actividad)
+            // ==========================================================
+            const renderDashboard = (stats) => {
+                loadingPlaceholder.classList.add('hidden');
+                dashboardContent.classList.remove('hidden');
+                AppMotion.enter(dashboardContent);
+
+                AppMotion.countUp(document.getElementById('kpi-monthly-count'), stats.currentMonthCount || 0);
+                document.getElementById('kpi-monthly-comparison').textContent = `vs ${stats.previousMonthCount || 0} el mes pasado`;
+                AppMotion.countUp(document.getElementById('kpi-weekly-count'), (stats.last7Days || []).length);
+                AppMotion.countUp(document.getElementById('kpi-today-count'), (stats.today || []).length);
+
+                renderPieChart(stats.quotesPerUser);
+                renderActivityTable(stats.today || [], 'table-today-body', 'No hay actividad registrada hoy.');
+                renderActivityTable(stats.last7Days || [], 'table-week-body', 'No hay actividad en los últimos 7 días.');
+            };
+
+            const renderPieChart = (data) => {
+                const container = document.getElementById('pie-chart-container');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<p class="text-center text-slate-500 mt-12">No hay cotizaciones este mes para mostrar.</p>';
+                    return;
+                }
+                const ctx = document.getElementById('userPieChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.map(u => u.name),
+                        datasets: [{
+                            label: 'Cotizaciones',
+                            data: data.map(u => u.count),
+                            backgroundColor: ['#E10098', '#6D28D9', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'],
+                            hoverOffset: 8,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        animation: { animateRotate: true, duration: 900, easing: 'easeOutQuart' },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: { callbacks: { label: (context) => ` ${context.label}: ${context.parsed}` } }
+                        }
+                    }
+                });
+            };
+
+            const renderActivityTable = (data, bodyId, emptyMessage) => {
+                const tbody = document.getElementById(bodyId);
+                tbody.innerHTML = data.length === 0 ? `<tr><td class="px-2 py-3 text-slate-500">${emptyMessage}</td></tr>`
+                    : data.map(item => `
+                        <tr class="border-b last:border-b-0 border-slate-100">
+                            <td class="px-2 py-2">
+                                <p class="font-medium text-slate-800 truncate">${item.advisorName}</p>
+                                <p class="text-slate-500 truncate">${item.clientName} - ${item.folio}</p>
+                            </td>
+                        </tr>`).join('');
+            };
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    if (response.success) renderDashboard(response.stats);
+                    else loadingPlaceholder.textContent = `Error al cargar datos: ${response.message}`;
+                })
+                .withFailureHandler(error => {
+                    loadingPlaceholder.textContent = `Error de comunicación con el servidor: ${error.message}`;
+                    console.error(error);
+                })
+                .getDashboardStats();
+
+            // ==========================================================
+            // PANEL DE SUPERVISIÓN (búsqueda, filtros, reporte)
+            // ==========================================================
+            const MAX_VISIBLE_ROWS = 150;
+            const supSearch = document.getElementById('sup-search');
+            const supDateFrom = document.getElementById('sup-date-from');
+            const supDateTo = document.getElementById('sup-date-to');
+            const supStatus = document.getElementById('sup-status');
+            const supAdvisor = document.getElementById('sup-advisor');
+            const supFormat = document.getElementById('sup-format');
+            const supBody = document.getElementById('sup-table-body');
+            const supPlaceholder = document.getElementById('sup-placeholder');
+            const supCapNote = document.getElementById('sup-cap-note');
+            const supSummary = document.getElementById('sup-summary');
+            const downloadReportButton = document.getElementById('downloadReportButton');
+            const clearFiltersButton = document.getElementById('clearFiltersButton');
+
+            let allQuotes = [];
+            let filteredQuotes = [];
+
+            const FORMAT_NAMES = { 'actual': 'Actual', 'ccl_liverpool': 'CCL Liverpool' };
+            const STATUS_CLASSES = {
+                'autorizada': 'v-badge-green',
+                'enviada-por-correo': 'v-badge-green',
+                'rechazada': 'v-badge-red',
+                'en-revision': 'v-badge-yellow',
+                'folio-generado': 'v-badge-yellow',
+                'default': 'v-badge-blue'
+            };
+            const escapeFolio = (folio) => String(folio || '').replace(/'/g, "\\'");
+            const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+            const showSupPlaceholder = (html) => {
+                supPlaceholder.innerHTML = html;
+                supPlaceholder.classList.toggle('hidden', html === '');
+            };
+
+            const populateFilterOptions = () => {
+                const fill = (select, values, labels) => {
+                    const current = select.value;
+                    select.innerHTML = '<option value="">Todos</option>' + values.map(v =>
+                        `<option value="${escapeHtml(v)}">${escapeHtml(labels ? (labels[v] || v) : v)}</option>`).join('');
+                    select.value = current;
+                };
+                fill(supStatus, [...new Set(allQuotes.map(q => q.status))].sort());
+                fill(supAdvisor, [...new Set(allQuotes.map(q => q.advisorName))].sort());
+                fill(supFormat, [...new Set(allQuotes.map(q => q.format))].sort(), FORMAT_NAMES);
+            };
+
+            const applyFilters = () => {
+                const term = supSearch.value.trim().toLowerCase();
+                const from = supDateFrom.value ? new Date(supDateFrom.value + 'T00:00:00') : null;
+                const to = supDateTo.value ? new Date(supDateTo.value + 'T23:59:59.999') : null;
+                const status = supStatus.value;
+                const advisor = supAdvisor.value;
+                const format = supFormat.value;
+
+                filteredQuotes = allQuotes.filter(q => {
+                    if (term) {
+                        const haystack = `${q.folio} ${q.clientName} ${q.clientEmail} ${q.advisorName} ${q.advisorEmail}`.toLowerCase();
+                        if (!haystack.includes(term)) return false;
+                    }
+                    if (from || to) {
+                        if (!q.timestamp) return false;
+                        const d = new Date(q.timestamp);
+                        if (from && d < from) return false;
+                        if (to && d > to) return false;
+                    }
+                    if (status && q.status !== status) return false;
+                    if (advisor && q.advisorName !== advisor) return false;
+                    if (format && q.format !== format) return false;
+                    return true;
+                });
+
+                renderSupTable();
+            };
+
+            const renderSupTable = () => {
+                supBody.innerHTML = '';
+                supCapNote.classList.add('hidden');
+
+                const totalAmount = filteredQuotes.reduce((sum, q) => sum + (q.total || 0), 0);
+                supSummary.innerHTML = `<strong>${filteredQuotes.length}</strong> cotizaciones &middot; Monto total: <strong class="text-brand-pink">${formatMoney(totalAmount)}</strong>`;
+
+                if (filteredQuotes.length === 0) {
+                    showSupPlaceholder('No hay cotizaciones que coincidan con los filtros.');
+                    return;
+                }
+                showSupPlaceholder('');
+
+                const visible = filteredQuotes.slice(0, MAX_VISIBLE_ROWS);
+                visible.forEach(q => {
+                    const row = document.createElement('tr');
+                    row.style.opacity = '0';
+                    const estatusLower = String(q.status || '').toLowerCase().replace(/\s+/g, '-');
+                    const folioJs = escapeFolio(q.folio);
+                    const fecha = q.timestamp ? new Date(q.timestamp).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+
+                    row.innerHTML = `
+                        <td class="font-medium text-slate-900">${escapeHtml(q.folio)}</td>
+                        <td>${fecha}</td>
+                        <td>${escapeHtml(q.advisorName)}</td>
+                        <td>${escapeHtml(q.clientName)}</td>
+                        <td class="font-medium">${formatMoney(q.total)}</td>
+                        <td><span class="v-badge ${STATUS_CLASSES[estatusLower] || STATUS_CLASSES.default}">${escapeHtml(q.status)}</span></td>
+                        <td>${escapeHtml(FORMAT_NAMES[q.format] || q.format)}</td>
+                        <td>
+                            <div class="flex items-center justify-center gap-1 flex-wrap">
+                                <button onclick="navigateToQuoteView('${folioJs}')" title="Ver la cotización" class="v-row-action v-act-pink">Ver</button>
+                                <button onclick="navigateToQuoteEdit('${folioJs}')" title="Editar y volver a cotizar" class="v-row-action v-act-blue">Editar</button>
+                                <button onclick="navigateToResend('${folioJs}')" title="Reenviar por correo al cliente" class="v-row-action v-act-slate">Reenviar</button>
+                                ${q.format === 'ccl_liverpool' ? `<button onclick="openQuoteInSheets('${folioJs}')" title="Abrir el formato CCL en Google Sheets" class="v-row-action v-act-green">Sheets</button>` : ''}
+                            </div>
+                        </td>
+                    `;
+                    supBody.appendChild(row);
+                });
+
+                if (filteredQuotes.length > MAX_VISIBLE_ROWS) {
+                    supCapNote.textContent = `Mostrando las primeras ${MAX_VISIBLE_ROWS} de ${filteredQuotes.length} cotizaciones. Afina los filtros o descarga el reporte CSV para ver todas.`;
+                    supCapNote.classList.remove('hidden');
+                }
+
+                AppMotion.staggerRows(supBody.querySelectorAll('tr'));
+            };
+
+            // --- Descarga del reporte CSV (respeta los filtros y fechas activos) ---
+            const downloadReport = () => {
+                if (filteredQuotes.length === 0) {
+                    AppMotion.toast('No hay cotizaciones que exportar con los filtros actuales.', 'warn');
+                    return;
+                }
+
+                const headers = ['Folio', 'Fecha', 'Asesor', 'CorreoAsesor', 'Cliente', 'CorreoCliente', 'Subtotal', 'IVA', 'Total', 'Estatus', 'Formato', 'Observaciones'];
+                const csvCell = (v) => {
+                    const s = String(v == null ? '' : v).replace(/"/g, '""');
+                    return /[",\n]/.test(s) ? `"${s}"` : s;
+                };
+                const rows = filteredQuotes.map(q => [
+                    q.folio,
+                    q.timestamp ? new Date(q.timestamp).toLocaleString('es-MX') : '',
+                    q.advisorName, q.advisorEmail,
+                    q.clientName, q.clientEmail,
+                    (q.subtotal || 0).toFixed(2), (q.vat || 0).toFixed(2), (q.total || 0).toFixed(2),
+                    q.status, FORMAT_NAMES[q.format] || q.format,
+                    q.observations
+                ].map(csvCell).join(','));
+
+                // BOM UTF-8 para que Excel abra los acentos correctamente.
+                const csv = '﻿' + headers.join(',') + '\n' + rows.join('\n');
+                const stamp = (d) => d ? d.replace(/-/g, '') : '';
+                const range = (supDateFrom.value || supDateTo.value)
+                    ? `_${stamp(supDateFrom.value) || 'inicio'}-${stamp(supDateTo.value) || 'hoy'}`
+                    : '';
+                const fileName = `Reporte_Cotizaciones${range}.csv`;
+
+                const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                AppMotion.pop(downloadReportButton);
+                AppMotion.toast(`Reporte descargado: ${filteredQuotes.length} cotizaciones.`, 'ok');
+            };
+
+            const loadSupervisionQuotes = () => {
+                showSupPlaceholder('<div class="flex items-center justify-center gap-3 text-slate-500"><div class="v-spinner"></div> Cargando todas las cotizaciones...</div>');
+                google.script.run
+                    .withSuccessHandler(response => {
+                        if (response.success) {
+                            allQuotes = response.quotes || [];
+                            populateFilterOptions();
+                            applyFilters();
+
+                            // KPI de monto del mes se calcula con estos datos.
+                            const now = new Date();
+                            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                            const monthAmount = allQuotes
+                                .filter(q => q.timestamp && new Date(q.timestamp) >= monthStart)
+                                .reduce((sum, q) => sum + (q.total || 0), 0);
+                            AppMotion.countUp(document.getElementById('kpi-monthly-amount'), monthAmount, v => formatMoney(v));
+                        } else {
+                            showSupPlaceholder(escapeHtml(response.message || 'No se pudieron cargar las cotizaciones.'));
+                        }
+                    })
+                    .withFailureHandler(error => {
+                        showSupPlaceholder('Error de comunicación al cargar las cotizaciones: ' + escapeHtml(error.message));
+                    })
+                    .getSupervisionQuotes(currentUserEmail);
+            };
+
+            let searchDebounce = null;
+            supSearch.addEventListener('input', () => {
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(applyFilters, 250);
+            });
+            [supDateFrom, supDateTo, supStatus, supAdvisor, supFormat].forEach(el => el.addEventListener('change', applyFilters));
+            downloadReportButton.addEventListener('click', downloadReport);
+            clearFiltersButton.addEventListener('click', () => {
+                supSearch.value = '';
+                supDateFrom.value = '';
+                supDateTo.value = '';
+                supStatus.value = '';
+                supAdvisor.value = '';
+                supFormat.value = '';
+                applyFilters();
+                AppMotion.pop(clearFiltersButton);
+            });
+
+            loadSupervisionQuotes();
+
+            // ==========================================================
+            // ADMINISTRACIÓN DE FORMATOS
+            // ==========================================================
+            const formatsContainer = document.getElementById('formats-admin');
+
+            const renderFormatsAdmin = (formats) => {
+                formatsContainer.innerHTML = formats.map(f => `
+                    <div class="p-5 flex items-start justify-between gap-4">
+                        <div>
+                            <p class="font-semibold text-slate-800">${f.name}</p>
+                            <p class="text-sm text-slate-500 mt-0.5">${f.description}</p>
+                            ${f.available ? '' : `<p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">No se puede usar todavía: ${f.unavailableReason}</p>`}
+                        </div>
+                        <label class="v-switch mt-1">
+                            <input type="checkbox" class="format-toggle" data-format-id="${f.id}" ${f.enabled ? 'checked' : ''}>
+                            <span class="track"></span>
+                            <span class="thumb"></span>
+                        </label>
+                    </div>
+                `).join('');
+
+                formatsContainer.querySelectorAll('.format-toggle').forEach(toggle => {
+                    toggle.addEventListener('change', () => {
+                        const formatId = toggle.dataset.formatId;
+                        const enabled = toggle.checked;
+                        formatsContainer.querySelectorAll('.format-toggle').forEach(t => t.disabled = true);
+
+                        google.script.run
+                            .withSuccessHandler(response => {
+                                if (response.success) {
+                                    renderFormatsAdmin(response.formats);
+                                    AppMotion.toast(`Formato ${enabled ? 'habilitado' : 'deshabilitado'}.`, 'ok');
+                                } else {
+                                    toggle.checked = !enabled;
+                                    formatsContainer.querySelectorAll('.format-toggle').forEach(t => t.disabled = false);
+                                    AppMotion.toast(response.message, 'error');
+                                }
+                            })
+                            .withFailureHandler(error => {
+                                toggle.checked = !enabled;
+                                formatsContainer.querySelectorAll('.format-toggle').forEach(t => t.disabled = false);
+                                AppMotion.toast('Error al guardar el formato: ' + error.message, 'error');
+                            })
+                            .setQuoteFormatEnabled(currentUserEmail, formatId, enabled);
+                    });
+                });
+            };
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    if (response.success) renderFormatsAdmin(response.formats);
+                    else formatsContainer.innerHTML = `<div class="p-6 text-sm text-slate-500">${response.message}</div>`;
+                })
+                .withFailureHandler(error => {
+                    formatsContainer.innerHTML = `<div class="p-6 text-sm text-red-600">Error al cargar los formatos: ${error.message}</div>`;
+                })
+                .getFormatSettings(currentUserEmail);
+        });
+    </script>
+</body>
+</html>
