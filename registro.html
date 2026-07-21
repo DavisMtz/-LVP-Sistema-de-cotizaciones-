@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Cuenta - Sistema de Cotizaciones Ventel</title>
+    <script>document.documentElement.classList.add('has-js');</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 'brand-pink': '#E10098', 'brand-pink-dark': '#b8007c' } } }
+        }
+    </script>
+    <?!= include('app_theme'); ?>
+    <style>
+        .brand-panel {
+            position: relative;
+            background: linear-gradient(135deg, #ff3ebf 0%, #E10098 42%, #b8007c 74%, #8a005f 100%);
+            background-size: 220% 220%;
+            animation: brand-flow 18s ease infinite;
+            isolation: isolate;
+        }
+        @keyframes brand-flow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .brand-mesh {
+            position: absolute; inset: 0; z-index: -1; pointer-events: none;
+            background:
+                radial-gradient(40rem 26rem at 22% 12%, rgba(255, 255, 255, .30), transparent 60%),
+                radial-gradient(34rem 24rem at 88% 88%, rgba(138, 0, 95, .55), transparent 62%),
+                radial-gradient(30rem 30rem at 50% 50%, rgba(255, 130, 195, .20), transparent 70%);
+            mix-blend-mode: screen;
+        }
+        .brand-vignette {
+            position: absolute; inset: 0; z-index: -1; pointer-events: none;
+            background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(52, 0, 38, .45) 100%);
+        }
+        .brand-orb {
+            position: absolute; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, .28), rgba(255, 255, 255, .04) 70%);
+            filter: blur(2px); will-change: transform;
+        }
+        .brand-stage { position: relative; z-index: 1; }
+        .brand-feat {
+            display: inline-flex; align-items: center; gap: .5rem;
+            padding: .4rem .8rem; border-radius: 999px;
+            background: rgba(255, 255, 255, .12);
+            border: 1px solid rgba(255, 255, 255, .22);
+            color: #fff; font-size: .8rem; font-weight: 600;
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+        }
+        .brand-feat span[data-icon] { width: 1rem; height: 1rem; color: #ffe3f1; }
+
+        .field { position: relative; }
+        .field-ic {
+            position: absolute; top: 0; bottom: 0; left: .75rem;
+            display: flex; align-items: center; width: 1.25rem; color: #9ca3af;
+            transition: color .25s ease, transform .25s ease; pointer-events: none;
+        }
+        .field-ic svg { width: 1.25rem; height: 1.25rem; }
+        .field:focus-within .field-ic { color: var(--brand); transform: scale(1.12); }
+
+        .btn-sheen { position: relative; overflow: hidden; }
+        .btn-sheen::after {
+            content: ''; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+            background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .55), transparent);
+            transform: skewX(-18deg); transition: left .6s ease; pointer-events: none;
+        }
+        .btn-sheen:hover::after { left: 130%; }
+
+        .strength-bar { height: 5px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+        .strength-bar > div { height: 100%; width: 0; border-radius: 999px; transition: width .35s ease, background-color .35s ease; }
+
+        .has-js [data-reveal],
+        .has-js [data-brand],
+        .has-js [data-feat] { opacity: 0; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .brand-panel, .brand-orb { animation: none !important; }
+        }
+    </style>
+</head>
+<body class="h-full bg-white">
+    <div class="flex min-h-full">
+        <!-- Panel Izquierdo (Branding) -->
+        <div class="relative hidden w-0 flex-1 lg:block overflow-hidden">
+            <div class="brand-panel absolute inset-0 h-full w-full flex flex-col justify-center items-center p-12" id="brandPanel">
+                <div class="brand-mesh"></div>
+                <div class="brand-vignette"></div>
+                <div class="brand-orb w-72 h-72 -bottom-16 -left-16" data-orb data-depth="26"></div>
+                <div class="brand-orb w-40 h-40 top-24 right-16" data-orb data-depth="-18"></div>
+
+                <div class="brand-stage flex flex-col items-center text-center max-w-md">
+                    <img class="h-16" src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool" data-brand="logo" data-parallax="10">
+                    <h2 class="mt-7 text-4xl font-extrabold tracking-tight text-white leading-tight" data-brand="title" data-split data-parallax="6">Únete a Ventel</h2>
+
+                    <svg class="mt-3 w-52 h-3" viewBox="0 0 220 12" fill="none" data-brand="rule">
+                        <path id="brandUnderline" d="M4 8C40 3 80 3 110 6C140 9 180 9 216 4" stroke="rgba(255,255,255,.9)" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+
+                    <p class="mt-4 text-lg text-pink-100" data-brand="sub" data-parallax="4">La herramienta para tus cotizaciones.</p>
+
+                    <div class="mt-8 flex flex-wrap justify-center gap-2.5">
+                        <span class="brand-feat" data-feat><span data-icon="bolt"></span> Rápido y simple</span>
+                        <span class="brand-feat" data-feat><span data-icon="shield"></span> Datos seguros</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Derecho (Formulario) -->
+        <div class="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+            <div class="mx-auto w-full max-w-sm lg:w-96">
+                <div class="lg:hidden mb-8 text-center" data-reveal><img class="h-12 mx-auto bg-brand-pink rounded-md p-2" src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool"></div>
+                <div data-reveal>
+                    <h2 class="text-3xl font-bold tracking-tight text-gray-900">Crea tu cuenta</h2>
+                    <p class="mt-2 text-sm text-gray-600">
+                        ¿Ya tienes una?
+                        <a href="#" id="loginLink" class="font-medium text-brand-pink hover:text-brand-pink-dark">Inicia sesión aquí</a>
+                    </p>
+                </div>
+                <div class="mt-8">
+                    <!-- Contenedor del Formulario -->
+                    <div id="formContainer">
+                        <div id="message-container" class="mb-4 text-center"></div>
+                        <form id="registerForm" class="space-y-5">
+                            <div data-reveal>
+                                <label for="name" class="v-label">Nombre Completo</label>
+                                <div class="field">
+                                    <span class="field-ic" data-icon="user"></span>
+                                    <input id="name" type="text" required placeholder="Tu nombre y apellido" class="v-input" style="padding-left: 2.5rem;">
+                                </div>
+                            </div>
+                            <div data-reveal>
+                                <label for="email" class="v-label">Correo Electrónico</label>
+                                <div class="field">
+                                    <span class="field-ic" data-icon="mail"></span>
+                                    <input id="email" type="email" required placeholder="tu.usuario@liverpool.com.mx" class="v-input" style="padding-left: 2.5rem;">
+                                </div>
+                                <p id="emailError" class="text-red-500 text-xs mt-1 hidden"></p>
+                            </div>
+                            <div data-reveal>
+                                <label for="password" class="v-label">Contraseña</label>
+                                <div class="field">
+                                    <span class="field-ic" data-icon="lock"></span>
+                                    <input id="password" type="password" required minlength="6" placeholder="Mínimo 6 caracteres" class="v-input" style="padding-left: 2.5rem;">
+                                </div>
+                                <div class="strength-bar mt-2"><div id="strengthFill"></div></div>
+                                <p id="strengthLabel" class="text-xs text-gray-500 mt-1"></p>
+                                <p id="passwordError" class="text-red-500 text-xs mt-1 hidden">La contraseña debe tener al menos 6 caracteres.</p>
+                            </div>
+                            <div data-reveal>
+                                <label for="confirmPassword" class="v-label">Confirmar Contraseña</label>
+                                <div class="field">
+                                    <span class="field-ic" data-icon="lock"></span>
+                                    <input id="confirmPassword" type="password" required placeholder="Repite tu contraseña" class="v-input" style="padding-left: 2.5rem;">
+                                </div>
+                                <p id="confirmPasswordError" class="text-red-500 text-xs mt-1 hidden">Las contraseñas no coinciden.</p>
+                            </div>
+                            <div data-reveal>
+                                <button type="submit" id="registerButton" class="v-btn v-btn-primary btn-sheen w-full mt-1">Crear Cuenta</button>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- Contenedor del Estado de Carga -->
+                    <div id="loadingContainer" class="hidden text-center">
+                        <div id="loadingIcon" class="mx-auto bg-brand-pink rounded-xl p-2 w-16 h-16 flex items-center justify-center shadow-lg"><img class="w-12 h-12 object-contain" src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool"></div>
+                        <h3 id="loadingText" class="mt-4 text-lg font-medium text-gray-900">Creando tu cuenta...</h3>
+                        <p class="mt-1 text-sm text-gray-600">Esto tomará un momento.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/DrawSVGPlugin.min.js"></script>
+    <script>
+        const formContainer = document.getElementById('formContainer');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const loadingIcon = document.getElementById('loadingIcon');
+        const loadingText = document.getElementById('loadingText');
+        const registerForm = document.getElementById('registerForm');
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const emailError = document.getElementById('emailError');
+        const passwordError = document.getElementById('passwordError');
+        const confirmPasswordError = document.getElementById('confirmPasswordError');
+        const messageContainer = document.getElementById('message-container');
+        const loginLink = document.getElementById('loginLink');
+        const strengthFill = document.getElementById('strengthFill');
+        const strengthLabel = document.getElementById('strengthLabel');
+        let iconPulse = null;
+
+        const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const HAS_GSAP = typeof gsap !== 'undefined';
+        const HAS_SPLIT = HAS_GSAP && typeof SplitText !== 'undefined';
+        const HAS_DRAW = HAS_GSAP && typeof DrawSVGPlugin !== 'undefined';
+        const ANIMATE = HAS_GSAP && !REDUCED;
+        if (HAS_GSAP) {
+            const plugins = [];
+            if (HAS_SPLIT) plugins.push(SplitText);
+            if (HAS_DRAW) plugins.push(DrawSVGPlugin);
+            if (plugins.length) gsap.registerPlugin.apply(gsap, plugins);
+        }
+
+        const showMessage = (text, isError = false) => {
+            messageContainer.textContent = text;
+            messageContainer.className = `text-sm font-medium text-center mb-4 ${isError ? 'text-red-600' : 'text-green-600'}`;
+            if (text && isError) AppMotion.shake(messageContainer);
+        };
+        const hideAllErrors = () => {
+            [emailError, passwordError, confirmPasswordError].forEach(el => el.classList.add('hidden'));
+            showMessage('');
+        };
+
+        // Indicador visual de qué tan robusta es la contraseña (orientativo).
+        passwordInput.addEventListener('input', () => {
+            const v = passwordInput.value;
+            let score = 0;
+            if (v.length >= 6) score++;
+            if (v.length >= 10) score++;
+            if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+            if (/\d/.test(v) || /[^A-Za-z0-9]/.test(v)) score++;
+            const levels = [
+                { w: '0%', c: '#e2e8f0', t: '' },
+                { w: '25%', c: '#ef4444', t: 'Débil' },
+                { w: '50%', c: '#f59e0b', t: 'Regular' },
+                { w: '75%', c: '#10b981', t: 'Buena' },
+                { w: '100%', c: '#059669', t: 'Excelente' }
+            ];
+            const lvl = levels[v ? score : 0];
+            strengthFill.style.width = lvl.w;
+            strengthFill.style.backgroundColor = lvl.c;
+            strengthLabel.textContent = lvl.t;
+            if (v.length >= 6) passwordError.classList.add('hidden');
+        });
+
+        const startIconPulse = () => {
+            if (!ANIMATE) return;
+            iconPulse = gsap.to(loadingIcon, { scale: 1.06, opacity: .85, duration: .9, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+        };
+        const stopIconPulse = () => {
+            if (iconPulse) { iconPulse.kill(); iconPulse = null; }
+            if (HAS_GSAP) gsap.set(loadingIcon, { clearProps: 'all' });
+        };
+
+        const showLoadingState = () => AppMotion.swap(formContainer, loadingContainer, startIconPulse);
+        const hideLoadingState = () => {
+            stopIconPulse();
+            AppMotion.swap(loadingContainer, formContainer);
+        };
+
+        const showSuccessStateAndRedirect = () => {
+            stopIconPulse();
+            loadingIcon.classList.remove('bg-brand-pink');
+            loadingIcon.classList.add('bg-green-100');
+            loadingIcon.innerHTML = Icons.svg('check', 'h-8 w-8 text-green-600');
+            AppMotion.pop(loadingIcon);
+            loadingText.textContent = '¡Cuenta creada! Redirigiendo...';
+            setTimeout(() => {
+                if (!AppUrl.go('login')) {
+                    hideLoadingState();
+                    showMessage('Error de navegación: no se pudo determinar la URL de la aplicación.', true);
+                }
+            }, 1300);
+        };
+
+        registerForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            hideAllErrors();
+            let isValid = true;
+            if (passwordInput.value.length < 6) {
+                passwordError.classList.remove('hidden');
+                AppMotion.shake(passwordInput.parentElement);
+                isValid = false;
+            }
+            if (passwordInput.value !== confirmPasswordInput.value) {
+                confirmPasswordError.classList.remove('hidden');
+                AppMotion.shake(confirmPasswordInput.parentElement);
+                isValid = false;
+            }
+            if (!isValid) return;
+
+            showLoadingState();
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    if (response.success) {
+                        showSuccessStateAndRedirect();
+                    } else {
+                        hideLoadingState();
+                        showMessage(response.message || 'Ocurrió un error.', true);
+                    }
+                })
+                .withFailureHandler(error => {
+                    hideLoadingState();
+                    showMessage('Error de comunicación: ' + error.message, true);
+                })
+                .registerUser(nameInput.value, emailInput.value, passwordInput.value);
+        });
+
+        [emailInput, confirmPasswordInput].forEach(input => {
+            input.addEventListener('input', () => hideAllErrors());
+        });
+
+        loginLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            AppUrl.go('login');
+        });
+
+        // =====================================================================================
+        // Coreografía cinematográfica de entrada
+        // =====================================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            Icons.render();
+
+            if (!ANIMATE) {
+                document.documentElement.classList.remove('has-js');
+                return;
+            }
+
+            try {
+            const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+            tl.fromTo('[data-brand="logo"]',
+                { opacity: 0, y: -18, filter: 'blur(8px)' },
+                { opacity: 1, y: 0, filter: 'blur(0px)', duration: .8 }, .15);
+
+            gsap.set('[data-brand="title"]', { opacity: 1 });
+            if (HAS_SPLIT) {
+                const split = SplitText.create('[data-brand="title"]', { type: 'chars,words', mask: 'chars' });
+                tl.from(split.chars, { yPercent: 120, opacity: 0, duration: .8, stagger: .028, ease: 'power4.out' }, '-=.4');
+            } else {
+                tl.fromTo('[data-brand="title"]', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: .7 }, '-=.4');
+            }
+
+            gsap.set('[data-brand="rule"]', { opacity: 1 });
+            if (HAS_DRAW) {
+                tl.from('#brandUnderline', { drawSVG: '0%', duration: .9, ease: 'power2.inOut' }, '-=.35');
+            } else {
+                tl.fromTo('#brandUnderline', { opacity: 0 }, { opacity: 1, duration: .5 }, '-=.35');
+            }
+
+            tl.fromTo('[data-brand="sub"]', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .6 }, '-=.5');
+            tl.fromTo('[data-feat]', { opacity: 0, y: 14, scale: .9 }, { opacity: 1, y: 0, scale: 1, duration: .5, stagger: .1, ease: 'back.out(1.6)' }, '-=.3');
+
+            tl.fromTo('[data-reveal]', { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: .6, stagger: .08 }, '-=.6');
+
+            if (HAS_DRAW) {
+                tl.from('.field-ic svg path', { drawSVG: '0%', duration: .5, stagger: .07, ease: 'power2.out' }, '-=.5');
+            }
+
+            document.querySelectorAll('[data-orb]').forEach((orb, i) => {
+                gsap.to(orb, { y: i % 2 ? 26 : -26, x: i % 2 ? -14 : 14, duration: 6 + i * 1.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+            });
+
+            const brandPanel = document.getElementById('brandPanel');
+            if (brandPanel && window.matchMedia('(pointer: fine)').matches) {
+                const layers = brandPanel.querySelectorAll('[data-depth], [data-parallax]');
+                const setters = [];
+                layers.forEach(el => {
+                    const depth = parseFloat(el.getAttribute('data-depth') || el.getAttribute('data-parallax') || 0);
+                    setters.push({
+                        x: gsap.quickTo(el, 'x', { duration: .6, ease: 'power3.out' }),
+                        y: gsap.quickTo(el, 'y', { duration: .6, ease: 'power3.out' }),
+                        depth
+                    });
+                });
+                brandPanel.addEventListener('pointermove', (e) => {
+                    const r = brandPanel.getBoundingClientRect();
+                    const nx = (e.clientX - r.left) / r.width - .5;
+                    const ny = (e.clientY - r.top) / r.height - .5;
+                    setters.forEach(s => { s.x(nx * s.depth); s.y(ny * s.depth); });
+                });
+                brandPanel.addEventListener('pointerleave', () => {
+                    setters.forEach(s => { s.x(0); s.y(0); });
+                });
+            }
+
+            const btn = document.getElementById('registerButton');
+            if (btn && window.matchMedia('(pointer: fine)').matches) {
+                const mx = gsap.quickTo(btn, 'x', { duration: .4, ease: 'power3.out' });
+                const my = gsap.quickTo(btn, 'y', { duration: .4, ease: 'power3.out' });
+                btn.addEventListener('pointermove', (e) => {
+                    const r = btn.getBoundingClientRect();
+                    mx((e.clientX - r.left - r.width / 2) * .3);
+                    my((e.clientY - r.top - r.height / 2) * .4);
+                });
+                btn.addEventListener('pointerleave', () => { mx(0); my(0); });
+            }
+            } catch (err) {
+                document.documentElement.classList.remove('has-js');
+                console.error('Animación de registro degradada:', err);
+            }
+        });
+    </script>
+</body>
+</html>
