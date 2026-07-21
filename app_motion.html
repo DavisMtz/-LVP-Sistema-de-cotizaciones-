@@ -1,0 +1,138 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script>
+/**
+ * =====================================================================================
+ * MOTOR DE ANIMACIÓN (GSAP) | Sistema de cotizaciones Ventel
+ * =====================================================================================
+ * Todas las pantallas usan estos helpers en lugar de animar por su cuenta.
+ * Si GSAP no carga (sin red al CDN) o el usuario prefiere menos movimiento,
+ * todo degrada a mostrar el contenido sin animar: la app nunca se queda oculta.
+ *
+ *  AppMotion.enter()            -> entrada escalonada de todo [data-animate]
+ *  AppMotion.staggerRows(rows)  -> filas de tabla que aparecen en cascada
+ *  AppMotion.countUp(el, valor) -> números de KPI que cuentan hasta su valor
+ *  AppMotion.modalIn/Out(...)   -> apertura/cierre de modales con overlay
+ *  AppMotion.pop(el)            -> micro-feedback (confirmaciones, toggles)
+ *  AppMotion.shake(el)          -> sacudida para errores de validación
+ *  AppMotion.toast(msg, tipo)   -> notificación animada (usa #v-toast-region del tema)
+ */
+(function () {
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function ok() { return typeof window.gsap !== 'undefined' && !reduced; }
+
+  const AppMotion = {
+    enter: function (root) {
+      const items = (root || document).querySelectorAll('[data-animate]');
+      if (!items.length) return;
+      if (!ok()) { items.forEach(function (el) { el.style.opacity = 1; }); return; }
+      gsap.fromTo(items,
+        { opacity: 0, y: 26 },
+        { opacity: 1, y: 0, duration: .7, ease: 'power3.out', stagger: .09, clearProps: 'transform', overwrite: 'auto' });
+    },
+
+    staggerRows: function (rows) {
+      if (!rows || !rows.length) return;
+      if (!ok()) { rows.forEach(function (r) { r.style.opacity = 1; }); return; }
+      gsap.fromTo(rows,
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: .45, ease: 'power2.out', stagger: .045, clearProps: 'transform', overwrite: 'auto' });
+    },
+
+    countUp: function (el, value, formatter) {
+      if (!el) return;
+      const fmt = formatter || function (v) { return Math.round(v).toLocaleString('es-MX'); };
+      if (!ok()) { el.textContent = fmt(value); return; }
+      const state = { v: 0 };
+      gsap.to(state, {
+        v: value, duration: 1.1, ease: 'power2.out',
+        onUpdate: function () { el.textContent = fmt(state.v); },
+        onComplete: function () { el.textContent = fmt(value); }
+      });
+    },
+
+    modalIn: function (overlay, card) {
+      overlay.classList.add('active');
+      if (!ok()) return;
+      gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: .22, ease: 'power1.out' });
+      if (card) gsap.fromTo(card, { opacity: 0, y: 24, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: .32, ease: 'back.out(1.4)', clearProps: 'transform' });
+    },
+
+    modalOut: function (overlay, card, done) {
+      const finish = function () { overlay.classList.remove('active'); if (done) done(); };
+      if (!ok()) { finish(); return; }
+      const tl = gsap.timeline({ onComplete: finish });
+      if (card) tl.to(card, { opacity: 0, y: 16, scale: .97, duration: .2, ease: 'power1.in' }, 0);
+      tl.to(overlay, { opacity: 0, duration: .22, ease: 'power1.in', clearProps: 'opacity' }, 0);
+    },
+
+    pop: function (el) {
+      if (!el || !ok()) return;
+      gsap.fromTo(el, { scale: .9 }, { scale: 1, duration: .35, ease: 'back.out(3)', clearProps: 'transform' });
+    },
+
+    shake: function (el) {
+      if (!el) return;
+      if (!ok()) return;
+      gsap.fromTo(el, { x: -7 }, { x: 0, duration: .5, ease: 'elastic.out(1, .25)', clearProps: 'transform' });
+    },
+
+    /** Cross-fade entre dos bloques (formulario <-> estado de carga, etc.). */
+    swap: function (fromEl, toEl, done) {
+      const finish = function () {
+        fromEl.classList.add('hidden');
+        toEl.classList.remove('hidden');
+        if (done) done();
+      };
+      if (!ok()) { finish(); return; }
+      gsap.to(fromEl, {
+        opacity: 0, y: -12, duration: .25, ease: 'power1.in',
+        onComplete: function () {
+          gsap.set(fromEl, { clearProps: 'all' });
+          finish();
+          gsap.fromTo(toEl, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .35, ease: 'power2.out', clearProps: 'all' });
+        }
+      });
+    },
+
+    toast: function (message, type) {
+      let region = document.getElementById('v-toast-region');
+      if (!region) {
+        region = document.createElement('div');
+        region.id = 'v-toast-region';
+        region.setAttribute('aria-live', 'polite');
+        document.body.appendChild(region);
+      }
+      const el = document.createElement('div');
+      el.className = 'v-toast ' + (type === 'error' ? 'bad' : (type === 'warn' ? 'warn' : 'ok'));
+      el.textContent = message;
+      region.appendChild(el);
+
+      const remove = function () {
+        if (!ok()) { el.remove(); return; }
+        gsap.to(el, { opacity: 0, x: 40, duration: .3, ease: 'power1.in', onComplete: function () { el.remove(); } });
+      };
+      if (ok()) gsap.fromTo(el, { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: .4, ease: 'power3.out' });
+      setTimeout(remove, type === 'error' ? 7000 : 4500);
+    }
+  };
+
+  window.AppMotion = AppMotion;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // El navbar compartido baja suavemente al cargar (entrada cinematográfica común).
+    const nav = document.querySelector('.v-nav');
+    if (nav && ok()) {
+      gsap.from(nav, { y: -20, opacity: 0, duration: .6, ease: 'power3.out', clearProps: 'all' });
+    }
+
+    AppMotion.enter(document);
+
+    // El navbar compartido reacciona al scroll sin que cada pantalla lo re-implemente.
+    if (nav) {
+      window.addEventListener('scroll', function () {
+        nav.classList.toggle('is-scrolled', window.scrollY > 10);
+      }, { passive: true });
+    }
+  });
+})();
+</script>
