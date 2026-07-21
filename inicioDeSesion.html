@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Sistema de Cotizaciones Ventel</title>
+    <!-- Oculta el contenido animado antes de que corra GSAP (evita parpadeo). -->
+    <script>document.documentElement.classList.add('has-js');</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 'brand-pink': '#E10098', 'brand-pink-dark': '#b8007c' } } }
+        }
+    </script>
+    <?!= include('app_theme'); ?>
+    <style>
+        /* ---- Panel de marca: rosa institucional Liverpool con profundidad cinematográfica ---- */
+        .brand-panel {
+            position: relative;
+            background: linear-gradient(135deg, #ff3ebf 0%, #E10098 42%, #b8007c 74%, #8a005f 100%);
+            background-size: 220% 220%;
+            animation: brand-flow 18s ease infinite;
+            isolation: isolate;
+        }
+        @keyframes brand-flow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        /* Malla luminosa superpuesta para dar relieve y sensación de estudio fotográfico */
+        .brand-mesh {
+            position: absolute; inset: 0; z-index: -1; pointer-events: none;
+            background:
+                radial-gradient(40rem 26rem at 78% 12%, rgba(255, 255, 255, .30), transparent 60%),
+                radial-gradient(34rem 24rem at 12% 88%, rgba(138, 0, 95, .55), transparent 62%),
+                radial-gradient(30rem 30rem at 50% 50%, rgba(255, 130, 195, .20), transparent 70%);
+            mix-blend-mode: screen;
+        }
+        /* Viñeta suave: enfoca la vista al centro, look de cine */
+        .brand-vignette {
+            position: absolute; inset: 0; z-index: -1; pointer-events: none;
+            background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(52, 0, 38, .45) 100%);
+        }
+        .brand-orb {
+            position: absolute; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, .28), rgba(255, 255, 255, .04) 70%);
+            filter: blur(2px); will-change: transform;
+        }
+        .brand-stage { position: relative; z-index: 1; }
+
+        /* Píldoras de características bajo el titular */
+        .brand-feat {
+            display: inline-flex; align-items: center; gap: .5rem;
+            padding: .4rem .8rem; border-radius: 999px;
+            background: rgba(255, 255, 255, .12);
+            border: 1px solid rgba(255, 255, 255, .22);
+            color: #fff; font-size: .8rem; font-weight: 600;
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+        }
+        .brand-feat span[data-icon] { width: 1rem; height: 1rem; color: #ffe3f1; }
+
+        /* ---- Campos: micro-interacción de foco (sin JS) ---- */
+        .field { position: relative; }
+        .field-ic {
+            position: absolute; top: 0; bottom: 0; left: .75rem;
+            display: flex; align-items: center; width: 1.25rem; color: #9ca3af;
+            transition: color .25s ease, transform .25s ease;
+            pointer-events: none;
+        }
+        .field-ic svg { width: 1.25rem; height: 1.25rem; }
+        .field:focus-within .field-ic { color: var(--brand); transform: scale(1.12); }
+
+        /* Botón: barrido de brillo al pasar el cursor */
+        .btn-sheen { position: relative; overflow: hidden; }
+        .btn-sheen::after {
+            content: ''; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+            background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .55), transparent);
+            transform: skewX(-18deg); transition: left .6s ease; pointer-events: none;
+        }
+        .btn-sheen:hover::after { left: 130%; }
+
+        /* Anti-parpadeo mientras GSAP prepara la escena */
+        .has-js [data-reveal],
+        .has-js [data-brand],
+        .has-js [data-feat] { opacity: 0; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .brand-panel, .brand-orb { animation: none !important; }
+        }
+    </style>
+</head>
+<body class="h-full bg-white">
+    <div class="flex min-h-full">
+        <!-- Panel Izquierdo (Branding) -->
+        <div class="relative hidden w-0 flex-1 lg:block overflow-hidden">
+            <div class="brand-panel absolute inset-0 h-full w-full flex flex-col justify-center items-center p-12" id="brandPanel">
+                <div class="brand-mesh"></div>
+                <div class="brand-vignette"></div>
+                <div class="brand-orb w-72 h-72 -top-16 -left-16" data-orb data-depth="26"></div>
+                <div class="brand-orb w-40 h-40 bottom-24 right-16" data-orb data-depth="-18"></div>
+                <div class="brand-orb w-24 h-24 top-1/3 right-1/4" data-orb data-depth="14"></div>
+
+                <div class="brand-stage flex flex-col items-center text-center max-w-md">
+                    <img class="h-16" src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool" data-brand="logo" data-parallax="10">
+                    <h2 class="mt-7 text-4xl font-extrabold tracking-tight text-white leading-tight" data-brand="title" data-split data-parallax="6">Bienvenido a Ventel</h2>
+
+                    <!-- Subrayado que se dibuja con DrawSVG -->
+                    <svg class="mt-3 w-56 h-3" viewBox="0 0 220 12" fill="none" data-brand="rule">
+                        <path id="brandUnderline" d="M4 8C40 3 80 3 110 6C140 9 180 9 216 4" stroke="rgba(255,255,255,.9)" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+
+                    <p class="mt-4 text-lg text-pink-100" data-brand="sub" data-parallax="4">Tu socio estratégico en cotizaciones.</p>
+
+                    <div class="mt-8 flex flex-wrap justify-center gap-2.5">
+                        <span class="brand-feat" data-feat><span data-icon="bolt"></span> Cotiza en segundos</span>
+                        <span class="brand-feat" data-feat><span data-icon="shield"></span> Folios protegidos</span>
+                        <span class="brand-feat" data-feat><span data-icon="sparkle"></span> Formatos oficiales</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Derecho (Formulario) -->
+        <div class="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+            <div class="mx-auto w-full max-w-sm lg:w-96">
+                <div class="lg:hidden mb-8 text-center" data-reveal>
+                    <img class="h-12 mx-auto bg-brand-pink rounded-md p-2" src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool">
+                </div>
+
+                <div data-reveal>
+                    <h2 class="text-3xl font-bold tracking-tight text-gray-900">Iniciar Sesión</h2>
+                    <p class="mt-2 text-sm text-gray-600">
+                        ¿No tienes una cuenta?
+                        <a href="#" id="createAccountLink" class="font-medium text-brand-pink hover:text-brand-pink-dark">Crea una aquí</a>
+                    </p>
+                </div>
+
+                <div class="mt-8">
+                    <!-- Contenedor del Formulario -->
+                    <div id="formContainer">
+                        <div id="message-container" class="mb-4 text-center"></div>
+                        <form id="loginForm" class="space-y-6">
+                            <div data-reveal>
+                                <label for="email" class="v-label">Correo Electrónico</label>
+                                <div class="field">
+                                    <span class="field-ic" data-icon="mail"></span>
+                                    <input id="email" name="email" type="email" autocomplete="email" required placeholder="tu.usuario@liverpool.com.mx" class="v-input" style="padding-left: 2.5rem;">
+                                </div>
+                            </div>
+                            <div data-reveal>
+                                <label for="password" class="v-label">Contraseña</label>
+                                <div class="field">
+                                    <span class="field-ic" data-icon="lock"></span>
+                                    <input id="password" name="password" type="password" required minlength="6" placeholder="Mínimo 6 caracteres" class="v-input" style="padding-left: 2.5rem; padding-right: 2.75rem;">
+                                    <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600" title="Mostrar / ocultar contraseña" tabindex="-1">
+                                        <span id="toggleIcon" class="h-5 w-5 block" data-icon="eye"></span>
+                                    </button>
+                                </div>
+                                <p id="passwordError" class="text-red-500 text-xs mt-1 hidden">La contraseña debe tener al menos 6 caracteres.</p>
+                            </div>
+                            <div data-reveal>
+                                <button type="submit" id="loginButton" class="v-btn v-btn-primary btn-sheen w-full">Iniciar Sesión</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Contenedor del Estado de Carga -->
+                    <div id="loadingContainer" class="hidden text-center">
+                        <div id="loadingIcon" class="mx-auto bg-brand-pink rounded-xl p-2 w-16 h-16 flex items-center justify-center shadow-lg">
+                           <img class="w-12 h-12 object-contain" src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool">
+                        </div>
+                        <h3 id="loadingText" class="mt-4 text-lg font-medium text-gray-900">Verificando credenciales...</h3>
+                        <p class="mt-1 text-sm text-gray-600">Por favor, espera un momento.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <!-- Plugins GSAP (gratuitos en 3.13). Si el CDN falla, todo degrada con guardas. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/DrawSVGPlugin.min.js"></script>
+    <script>
+        const LOGO_HTML = '<img class="w-12 h-12 object-contain" src="https://assetspwa.liverpool.com.mx/assets/digital/mailings/img/liv_w.png" alt="Logo Liverpool">';
+
+        const formContainer = document.getElementById('formContainer');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const loadingIcon = document.getElementById('loadingIcon');
+        const loadingText = document.getElementById('loadingText');
+        const loginForm = document.getElementById('loginForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const passwordError = document.getElementById('passwordError');
+        const createAccountLink = document.getElementById('createAccountLink');
+        const messageContainer = document.getElementById('message-container');
+        const togglePassword = document.getElementById('togglePassword');
+        const toggleIcon = document.getElementById('toggleIcon');
+        let iconPulse = null;
+
+        // ---- Capacidades de animación (degradación segura sin CDN / con menos movimiento) ----
+        const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const HAS_GSAP = typeof gsap !== 'undefined';
+        const HAS_SPLIT = HAS_GSAP && typeof SplitText !== 'undefined';
+        const HAS_DRAW = HAS_GSAP && typeof DrawSVGPlugin !== 'undefined';
+        const ANIMATE = HAS_GSAP && !REDUCED;
+        if (HAS_GSAP) {
+            const plugins = [];
+            if (HAS_SPLIT) plugins.push(SplitText);
+            if (HAS_DRAW) plugins.push(DrawSVGPlugin);
+            if (plugins.length) gsap.registerPlugin.apply(gsap, plugins);
+        }
+
+        const showMessage = (text, isError = false) => {
+            messageContainer.textContent = text;
+            messageContainer.className = `text-sm font-medium text-center mb-4 ${isError ? 'text-red-600' : 'text-green-600'}`;
+            if (text && isError) AppMotion.shake(messageContainer);
+        };
+
+        const startIconPulse = () => {
+            if (!ANIMATE) return;
+            iconPulse = gsap.to(loadingIcon, { scale: 1.06, opacity: .85, duration: .9, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+        };
+        const stopIconPulse = () => {
+            if (iconPulse) { iconPulse.kill(); iconPulse = null; }
+            if (HAS_GSAP) gsap.set(loadingIcon, { clearProps: 'all' });
+        };
+
+        const showLoadingState = () => AppMotion.swap(formContainer, loadingContainer, startIconPulse);
+
+        const hideLoadingState = () => {
+            stopIconPulse();
+            loadingIcon.innerHTML = LOGO_HTML;
+            loadingIcon.classList.remove('bg-green-100');
+            loadingIcon.classList.add('bg-brand-pink');
+            loadingText.textContent = 'Verificando credenciales...';
+            AppMotion.swap(loadingContainer, formContainer);
+        };
+
+        const showSuccessStateAndRedirect = () => {
+            stopIconPulse();
+            loadingIcon.classList.remove('bg-brand-pink');
+            loadingIcon.classList.add('bg-green-100');
+            loadingIcon.innerHTML = Icons.svg('check', 'h-8 w-8 text-green-600');
+            AppMotion.pop(loadingIcon);
+            loadingText.textContent = '¡Éxito! Redirigiendo...';
+            setTimeout(() => {
+                if (!AppUrl.goHome()) {
+                    hideLoadingState();
+                    showMessage('Error de navegación: no se pudo determinar la URL de la aplicación.', true);
+                }
+            }, 900);
+        };
+
+        togglePassword.addEventListener('click', () => {
+            const visible = passwordInput.type === 'text';
+            passwordInput.type = visible ? 'password' : 'text';
+            toggleIcon.innerHTML = Icons.svg(visible ? 'eye' : 'eye-off', 'h-full w-full');
+            AppMotion.pop(togglePassword);
+        });
+
+        loginForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            showMessage('');
+            passwordError.classList.add('hidden');
+
+            if (passwordInput.value.length < 6) {
+                passwordError.classList.remove('hidden');
+                AppMotion.shake(passwordInput.parentElement);
+                passwordInput.focus();
+                return;
+            }
+
+            showLoadingState();
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    if (response.success) {
+                        AppSession.save(response);
+                        showSuccessStateAndRedirect();
+                    } else {
+                        hideLoadingState();
+                        showMessage(response.message || 'Correo o contraseña incorrectos.', true);
+                    }
+                })
+                .withFailureHandler(error => {
+                    hideLoadingState();
+                    showMessage('Error de comunicación: ' + error.message, true);
+                })
+                .loginUser(emailInput.value, passwordInput.value);
+        });
+
+        passwordInput.addEventListener('input', () => {
+            if (passwordInput.value.length >= 6) passwordError.classList.add('hidden');
+        });
+
+        createAccountLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            AppUrl.go('registro');
+        });
+
+        // =====================================================================================
+        // Coreografía cinematográfica de entrada
+        // =====================================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            Icons.render();
+
+            // Sin animación disponible: mostrar todo de inmediato (nunca dejar contenido oculto).
+            if (!ANIMATE) {
+                document.documentElement.classList.remove('has-js');
+                return;
+            }
+
+            try {
+            const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+            // --- Marca (panel izquierdo) ---
+            tl.fromTo('[data-brand="logo"]',
+                { opacity: 0, y: -18, filter: 'blur(8px)' },
+                { opacity: 1, y: 0, filter: 'blur(0px)', duration: .8 }, .15);
+
+            // Titular carácter por carácter (SplitText) con degradación a bloque.
+            gsap.set('[data-brand="title"]', { opacity: 1 });
+            if (HAS_SPLIT) {
+                const split = SplitText.create('[data-brand="title"]', { type: 'chars,words', mask: 'chars' });
+                tl.from(split.chars, { yPercent: 120, opacity: 0, duration: .8, stagger: .028, ease: 'power4.out' }, '-=.4');
+            } else {
+                tl.fromTo('[data-brand="title"]', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: .7 }, '-=.4');
+            }
+
+            // Subrayado dibujado.
+            gsap.set('[data-brand="rule"]', { opacity: 1 });
+            if (HAS_DRAW) {
+                tl.from('#brandUnderline', { drawSVG: '0%', duration: .9, ease: 'power2.inOut' }, '-=.35');
+            } else {
+                tl.fromTo('#brandUnderline', { opacity: 0 }, { opacity: 1, duration: .5 }, '-=.35');
+            }
+
+            tl.fromTo('[data-brand="sub"]', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .6 }, '-=.5');
+            tl.fromTo('[data-feat]', { opacity: 0, y: 14, scale: .9 }, { opacity: 1, y: 0, scale: 1, duration: .5, stagger: .1, ease: 'back.out(1.6)' }, '-=.3');
+
+            // --- Formulario (panel derecho) ---
+            tl.fromTo('[data-reveal]', { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: .65, stagger: .1 }, '-=.6');
+
+            // Los iconos de campo se "dibujan" al entrar.
+            if (HAS_DRAW) {
+                tl.from('.field-ic svg path', { drawSVG: '0%', duration: .55, stagger: .09, ease: 'power2.out' }, '-=.45');
+            }
+
+            // Orbes flotando en bucle.
+            document.querySelectorAll('[data-orb]').forEach((orb, i) => {
+                gsap.to(orb, { y: i % 2 ? 26 : -26, x: i % 2 ? -14 : 14, duration: 6 + i * 1.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+            });
+
+            // --- Parallax con el puntero (profundidad, look de cámara) ---
+            const brandPanel = document.getElementById('brandPanel');
+            if (brandPanel && window.matchMedia('(pointer: fine)').matches) {
+                const layers = brandPanel.querySelectorAll('[data-depth], [data-parallax]');
+                const setters = [];
+                layers.forEach(el => {
+                    const depth = parseFloat(el.getAttribute('data-depth') || el.getAttribute('data-parallax') || 0);
+                    setters.push({
+                        x: gsap.quickTo(el, 'x', { duration: .6, ease: 'power3.out' }),
+                        y: gsap.quickTo(el, 'y', { duration: .6, ease: 'power3.out' }),
+                        depth
+                    });
+                });
+                brandPanel.addEventListener('pointermove', (e) => {
+                    const r = brandPanel.getBoundingClientRect();
+                    const nx = (e.clientX - r.left) / r.width - .5;
+                    const ny = (e.clientY - r.top) / r.height - .5;
+                    setters.forEach(s => { s.x(nx * s.depth); s.y(ny * s.depth); });
+                });
+                brandPanel.addEventListener('pointerleave', () => {
+                    setters.forEach(s => { s.x(0); s.y(0); });
+                });
+            }
+
+            // --- Botón magnético ---
+            const btn = document.getElementById('loginButton');
+            if (btn && window.matchMedia('(pointer: fine)').matches) {
+                const mx = gsap.quickTo(btn, 'x', { duration: .4, ease: 'power3.out' });
+                const my = gsap.quickTo(btn, 'y', { duration: .4, ease: 'power3.out' });
+                btn.addEventListener('pointermove', (e) => {
+                    const r = btn.getBoundingClientRect();
+                    mx((e.clientX - r.left - r.width / 2) * .3);
+                    my((e.clientY - r.top - r.height / 2) * .4);
+                });
+                btn.addEventListener('pointerleave', () => { mx(0); my(0); });
+            }
+            } catch (err) {
+                // Si algo falla durante la animación, mostrar todo el contenido.
+                document.documentElement.classList.remove('has-js');
+                console.error('Animación de login degradada:', err);
+            }
+        });
+    </script>
+</body>
+</html>
