@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotización - Sistema Ventel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 'liverpool-pink': '#E10098', 'brand-pink': '#E10098', 'brand-pink-dark': '#b8007c' } } }
+        }
+    </script>
+    <?!= include('app_theme'); ?>
+    <style>
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        #product-table, #product-table th, #product-table td { border: 1px solid #e2e8f0; }
+
+        #product-table th, #product-table td {
+            padding: 10px 10px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        #product-table th {
+            background-color: #f8fafc;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: normal;
+            text-align: center;
+            vertical-align: top;
+            line-height: 1.2;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+            color: #475569;
+        }
+        #product-table tbody tr { transition: background-color .15s ease; }
+        #product-table tbody tr:hover { background-color: #fafafa; }
+
+        .editable-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 0.875rem;
+            transition: border-color .18s ease, box-shadow .18s ease;
+            background: #fff;
+        }
+        #product-table .editable-input { padding: 6px 8px; }
+        .editable-input:focus { outline: none; border-color: #E10098; box-shadow: 0 0 0 3px rgba(225, 0, 152, 0.18); }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { margin: 0; font-size: 9pt; background: #fff; }
+            .print-container { box-shadow: none; border: none; max-width: 100%; margin: 0; padding: 15px; }
+            #product-table th, #product-table td { padding: 4px; font-size: 7.5pt;}
+            .editable-input { padding: 2px 4px; font-size: 7.5pt; border: none; background-color: transparent; -webkit-appearance: none; appearance: none; }
+            select.editable-input { border: none; background-color: transparent; -webkit-appearance: none; appearance: none; padding-right: 0; }
+        }
+
+        .modal-content textarea {
+            width: 100%;
+            height: 180px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.75rem;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 16px;
+        }
+        .modal-content textarea:focus {
+            outline: none;
+            border-color: #E10098;
+            box-shadow: 0 0 0 3px rgba(225, 0, 152, 0.18);
+        }
+
+        .col-sku { min-width: 80px; }
+        .col-cantidad { min-width: 60px; text-align: center;}
+        .col-descripcion { min-width: 220px; width: 25%;}
+        .col-p-unitario { min-width: 100px; }
+        .col-p-volumen { min-width: 110px; }
+        .col-costo-pago-unico { min-width: 110px; }
+        .col-desc-publico { min-width: 80px; }
+        .col-precio-c-desc { min-width: 110px; }
+        .col-desc-adic-select { min-width: 85px; }
+        .col-desc-adic-percent { min-width: 80px; }
+        .col-subtotal-base { min-width: 110px; }
+        .col-iva { min-width: 90px; }
+        .col-total-fila { min-width: 110px; font-weight: 600; }
+        .col-accion { min-width: 80px; text-align: center; }
+
+        /* Resumen de totales que "late" al recalcular */
+        #summary-total-card { transition: box-shadow .3s ease; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="app-aurora"></div>
+
+    <div class="print-container max-w-full xl:max-w-7xl mx-auto bg-white p-6 md:p-10 rounded-2xl shadow-lg border border-gray-200">
+        <div id="cancel-button-area-top" class="no-print mb-6 flex justify-between items-center flex-wrap gap-3" data-animate>
+            <span id="edit-mode-badge" class="v-badge v-badge-blue hidden">Editando cotización existente</span>
+            <div class="ml-auto">
+                <button id="cancel-quote-button-top" class="v-btn v-btn-ghost v-btn-sm">
+                    <span class="w-4 h-4 block" data-icon="arrow-left"></span>
+                    <span>Cancelar y Volver</span>
+                </button>
+            </div>
+        </div>
+
+        <header class="flex flex-col md:flex-row justify-between items-start mb-10 border-b pb-6 border-gray-200" data-animate>
+            <div class="text-left mb-4 md:mb-0">
+                <h1 class="text-4xl font-bold text-gray-800">COTIZACIÓN</h1>
+                <p class="text-gray-500 mt-1">Ventas a Distancia</p>
+                <p class="text-gray-500 mt-3">Fecha: <span id="current-date"></span></p>
+                <p class="text-red-600 text-xs font-semibold mt-1">Precios y promociones sujetos a cambio sin previo aviso.</p>
+                <p class="text-gray-700 text-base mt-2 font-medium">Folio: <span id="quote-folio-display">NUEVO</span></p>
+            </div>
+            <div class="text-right">
+                 <img
+                   src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png"
+                   alt="Logo Liverpool"
+                   class="h-14 md:h-16" style="max-height: 45px; width: auto;"
+                   onerror="this.onerror=null; this.src='https://placehold.co/150x45/E10098/FFFFFF?text=Liverpool&font=roboto';"
+                 >
+                <p class="text-sm text-gray-400 mt-2">Centro de Contacto Liverpool</p>
+                <p class="text-sm text-gray-400">Teléfono: 55 5262 9999, opción 3</p>
+            </div>
+        </header>
+
+        <div id="message-area" class="mb-6 p-4 rounded-md text-center text-base font-medium hidden"></div>
+
+        <div id="quote-form-container">
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
+                <div class="bg-pink-50 p-6 rounded-xl border border-pink-200" data-animate>
+                    <h2 class="text-xl font-semibold text-pink-700 mb-4">INFORMACIÓN DEL ASESOR</h2>
+                    <div class="space-y-4 text-base">
+                        <p><strong>Nombre:</strong> <input type="text" id="advisor-name" class="editable-input py-2" placeholder="Nombre del Asesor"></p>
+                        <p><strong>Puesto:</strong> Asesor de Ventas por Teléfono e Internet</p>
+                        <p><strong>Email:</strong> <span id="advisor-email-display">cargando...</span></p>
+                        <p><strong>Extensión:</strong> <input type="text" id="advisor-ext" class="editable-input py-2" placeholder="Ext."></p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200" data-animate>
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">INFORMACIÓN DEL CLIENTE</h2>
+                    <div class="space-y-4 text-base">
+                        <p><strong>Dirigida a:</strong> <input type="text" id="client-name" class="editable-input py-2" placeholder="Nombre del Cliente" required></p>
+                        <p><strong>Correo:</strong> <input type="email" id="client-email" class="editable-input py-2" placeholder="correo@ejemplo.com"></p>
+                        <p><strong>Teléfono:</strong> <input type="tel" id="client-phone" class="editable-input py-2" placeholder="55 1234 5678"></p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-10 overflow-x-auto" data-animate>
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">DETALLE DE PRODUCTOS</h2>
+                <table id="product-table" class="w-full text-base border-collapse">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="col-sku">SKU</th>
+                            <th class="col-cantidad">Cant.</th>
+                            <th class="col-descripcion">Descripción</th>
+                            <th class="col-p-unitario">P. Unitario<br>(Base)</th>
+                            <th class="col-p-volumen">P. x<br>Volumen</th>
+                            <th class="col-costo-pago-unico">Costo Pago<br>Único (Línea)</th>
+                            <th class="col-desc-publico">Desc.<br>Púb. (%)</th>
+                            <th class="col-precio-c-desc">Precio c/<br>Desc. Púb.</th>
+                            <th class="col-desc-adic-select">Desc.<br>Adic.?</th>
+                            <th class="col-desc-adic-percent">% Desc.<br>Adic.</th>
+                            <th class="col-subtotal-base">Subtotal<br>(Base Fila)</th>
+                            <th class="col-iva">IVA<br>(16%)</th>
+                            <th class="col-total-fila">Total<br>Fila</th>
+                            <th class="no-print col-accion">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-rows"></tbody>
+                </table>
+                <div class="flex flex-wrap gap-3 mt-6 no-print">
+                    <button id="add-row" class="v-btn v-btn-primary">
+                        <span class="w-5 h-5 block" data-icon="plus"></span>
+                        <span>Añadir Producto</span>
+                    </button>
+                    <button id="import-json-btn" class="v-btn v-btn-indigo">
+                        <span class="w-5 h-5 block" data-icon="clipboard"></span>
+                        <span>Importar desde Bolsa (JSON)</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 observations-section">
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200" data-animate>
+                     <h2 class="text-xl font-semibold text-gray-700 mb-4">OBSERVACIONES</h2>
+                     <textarea id="observations" class="editable-input w-full h-28 text-base py-2" placeholder="Añadir observaciones aquí..."></textarea>
+                </div>
+                <div class="flex justify-end items-end" data-animate>
+                    <div class="w-full md:w-4/5 lg:w-2/3 space-y-3 text-base">
+                        <div class="flex justify-between p-3 bg-gray-100 rounded-lg">
+                            <span class="font-semibold">SUBTOTAL GENERAL (Base):</span>
+                            <span id="summary-subtotal" class="font-semibold">$0.00</span>
+                        </div>
+                        <div class="flex justify-between p-3">
+                            <span class="font-semibold">IVA GENERAL (16%):</span>
+                            <span id="summary-vat" class="font-semibold">$0.00</span>
+                        </div>
+                         <div id="summary-total-card" class="flex justify-between p-4 bg-pink-100 rounded-lg border border-pink-300">
+                            <span class="font-bold text-xl text-pink-700">TOTAL A PAGAR:</span>
+                            <span id="summary-total" class="font-bold text-xl text-pink-700">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="format-section" class="mb-10 no-print" data-animate>
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-1">FORMATO DE LA COTIZACIÓN</h2>
+                    <p class="text-sm text-gray-500 mb-4">Con este formato se generará el PDF que se imprime y se envía al cliente.</p>
+                    <div id="format-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <p class="text-sm text-gray-500 flex items-center gap-2"><span class="v-spinner"></span> Cargando formatos disponibles...</p>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="text-center text-sm text-gray-500 pt-6 border-t border-gray-200 mt-10">
+                <p class="mb-1">Disponibilidad sujeta a cambios sin previo aviso.</p>
+                <p class="mb-1">Considera que precios y promociones pueden cambiar.</p>
+                <p>Liverpool - Es parte de mi vida</p>
+            </footer>
+
+             <div id="action-buttons-area" class="text-center mt-10 no-print space-x-4" data-animate>
+                <button id="request-review-button" class="v-btn v-btn-success text-base px-6 py-3">
+                    <span class="w-5 h-5 block" data-icon="eye"></span>
+                    <span id="reviewButtonText">Ir a Vista Previa</span>
+                    <div id="reviewSpinner" class="v-spinner hidden"></div>
+                </button>
+            </div>
+        </div>
+        <input type="hidden" id="current-quote-folio" value="">
+    </div>
+
+    <!-- MODAL: Importar JSON desde Extensión -->
+    <div id="json-import-modal" class="v-modal-overlay">
+        <div class="v-modal modal-content" style="max-width: 600px;">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">📋 Importar Artículos desde JSON</h3>
+            <p class="text-sm text-slate-500 mb-4">Pega aquí el JSON generado por la extensión <strong>Ventel Extractor de Bolsa</strong>. Los productos se agregarán automáticamente a la cotización.</p>
+            <textarea id="json-import-textarea" placeholder='Pega el JSON aquí... { "products": [...] }'></textarea>
+            <div id="json-import-error" style="color: #dc2626; font-size: 0.8rem; margin-bottom: 10px; display: none;"></div>
+            <div class="flex justify-end gap-3">
+                <button id="json-import-cancel" class="v-btn v-btn-ghost v-btn-sm">Cancelar</button>
+                <button id="json-import-confirm" class="v-btn v-btn-success v-btn-sm" onclick="importJsonProducts()">✅ Importar Productos</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?>, action: <?!= JSON.stringify(action) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <script>
+        const productRowsContainer = document.getElementById('product-rows');
+        const addRowButton = document.getElementById('add-row');
+        const requestReviewButton = document.getElementById('request-review-button');
+        const reviewButtonText = document.getElementById('reviewButtonText');
+        const reviewSpinner = document.getElementById('reviewSpinner');
+        const messageArea = document.getElementById('message-area');
+        const quoteFolioDisplay = document.getElementById('quote-folio-display');
+        const currentQuoteFolioInput = document.getElementById('current-quote-folio');
+        const advisorEmailDisplay = document.getElementById('advisor-email-display');
+        const advisorNameInput = document.getElementById('advisor-name');
+        const cancelQuoteButtonTop = document.getElementById('cancel-quote-button-top');
+        const jsonModal = document.getElementById('json-import-modal');
+        const jsonModalCard = jsonModal.querySelector('.v-modal');
+
+        let currentUserEmail = null;
+        let currentAdvisorName = '';
+
+        function formatCurrency(amount) {
+            if (isNaN(amount) || amount === null) amount = 0;
+            return amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+        }
+
+        function parseCurrency(currencyString) {
+            if (typeof currencyString !== 'string') return 0;
+            return parseFloat(currencyString.replace(/[^0-9.-]+/g,"")) || 0;
+        }
+
+        function showGeneralMessage(text, isError = false, autohide = true) {
+            messageArea.textContent = text;
+            messageArea.className = `mb-6 p-4 rounded-md text-center text-base font-medium ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            messageArea.classList.remove('hidden');
+            if (isError) AppMotion.shake(messageArea);
+            if (!isError && autohide) {
+                setTimeout(() => messageArea.classList.add('hidden'), 3500);
+            }
+        }
+
+        function navigateToPage(page, params = {}) {
+            if (requestReviewButton) requestReviewButton.disabled = true;
+            if (cancelQuoteButtonTop) cancelQuoteButtonTop.disabled = true;
+
+            if (!AppUrl.go(page, params)) {
+                showGeneralMessage('Error: URL base no cargada. No se puede navegar.', true, false);
+                if (requestReviewButton) requestReviewButton.disabled = false;
+                if (cancelQuoteButtonTop) cancelQuoteButtonTop.disabled = false;
+            }
+        }
+
+        function setLoadingState(isLoading, button, buttonTextElement, originalText, spinnerElement) {
+            if (isLoading) {
+                button.disabled = true;
+                if (buttonTextElement) buttonTextElement.textContent = 'Procesando...';
+                if (spinnerElement) spinnerElement.classList.remove('hidden');
+            } else {
+                button.disabled = false;
+                if (buttonTextElement && originalText) buttonTextElement.textContent = originalText;
+                if (spinnerElement) spinnerElement.classList.add('hidden');
+            }
+        }
+
+        function calculateRow(row, eventSource = null) {
+            const quantityInput = row.querySelector('.quantity');
+            const unitPriceInput = row.querySelector('.unit-price');
+            const costPaymentUniqueInput = row.querySelector('.cost-payment-unique');
+            const discountPublicPercentInput = row.querySelector('.discount-public-percent');
+            const additionalDiscountAppliedSelect = row.querySelector('.additional-discount-applied');
+            const additionalDiscountPercentInput = row.querySelector('.additional-discount-percent');
+
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const unitPrice = parseFloat(unitPriceInput.value) || 0;
+            let costPaymentUnique = parseFloat(costPaymentUniqueInput.value) || 0;
+            let discountPublicPercent = parseFloat(discountPublicPercentInput.value) || 0;
+            const applyAdditionalDiscount = additionalDiscountAppliedSelect.value === 'Si';
+            let additionalDiscountPercent = parseFloat(additionalDiscountPercentInput.value) || 0;
+
+            const priceVolume = quantity * unitPrice;
+
+            if (costPaymentUnique > 0 && unitPrice > 0 && quantity > 0 && eventSource === costPaymentUniqueInput) {
+                const effectivePricePerUnitAfterAllDiscounts = costPaymentUnique / quantity;
+                let totalDiscountPercentCalculated = 0;
+                if (unitPrice > 0) {
+                    totalDiscountPercentCalculated = (1 - (effectivePricePerUnitAfterAllDiscounts / unitPrice)) * 100;
+                }
+                totalDiscountPercentCalculated = Math.max(0, Math.min(100, totalDiscountPercentCalculated));
+
+                if (applyAdditionalDiscount) {
+                    additionalDiscountPercentInput.value = totalDiscountPercentCalculated.toFixed(2);
+                    discountPublicPercentInput.value = 0;
+                    additionalDiscountPercent = totalDiscountPercentCalculated;
+                    discountPublicPercent = 0;
+                } else {
+                    discountPublicPercentInput.value = totalDiscountPercentCalculated.toFixed(2);
+                    additionalDiscountPercentInput.value = 0;
+                    discountPublicPercent = totalDiscountPercentCalculated;
+                    additionalDiscountPercent = 0;
+                }
+            }
+            else if (eventSource === discountPublicPercentInput ||
+                       eventSource === additionalDiscountPercentInput ||
+                       eventSource === additionalDiscountAppliedSelect ||
+                       eventSource === unitPriceInput ||
+                       eventSource === quantityInput) {
+                costPaymentUniqueInput.value = '';
+                costPaymentUnique = 0;
+            }
+
+            let priceAfterPublicDiscount = priceVolume * (1 - (discountPublicPercent / 100));
+            priceAfterPublicDiscount = Math.max(0, priceAfterPublicDiscount);
+
+            let finalPriceWithAllDiscounts = priceAfterPublicDiscount;
+            if (applyAdditionalDiscount) {
+                finalPriceWithAllDiscounts = priceAfterPublicDiscount * (1 - (additionalDiscountPercent / 100));
+            }
+            finalPriceWithAllDiscounts = Math.max(0, finalPriceWithAllDiscounts);
+
+            if (costPaymentUnique > 0) {
+                finalPriceWithAllDiscounts = costPaymentUnique;
+            }
+
+            const subtotalBaseRow = finalPriceWithAllDiscounts / 1.16;
+            const vatRow = finalPriceWithAllDiscounts - subtotalBaseRow;
+
+            row.querySelector('.price-volume').textContent = formatCurrency(priceVolume);
+            row.querySelector('.price-with-public-discount').textContent = formatCurrency(priceAfterPublicDiscount);
+            row.querySelector('.subtotal-row').textContent = formatCurrency(subtotalBaseRow);
+            row.querySelector('.vat-row').textContent = formatCurrency(vatRow);
+            row.querySelector('.total-row').textContent = formatCurrency(finalPriceWithAllDiscounts);
+
+            return { subtotalBase: subtotalBaseRow, vat: vatRow, total: finalPriceWithAllDiscounts };
+        }
+
+        let lastSummaryTotal = null;
+        function calculateTotals(eventSourceInput = null) {
+            let summarySubtotal = 0;
+            let summaryVat = 0;
+            let summaryTotal = 0;
+            productRowsContainer.querySelectorAll('.product-row').forEach(row => {
+                const sourceForRow = row.contains(eventSourceInput) ? eventSourceInput : null;
+                const rowTotals = calculateRow(row, sourceForRow);
+                summarySubtotal += rowTotals.subtotalBase;
+                summaryVat += rowTotals.vat;
+                summaryTotal += rowTotals.total;
+            });
+            document.getElementById('summary-subtotal').textContent = formatCurrency(summarySubtotal);
+            document.getElementById('summary-vat').textContent = formatCurrency(summaryVat);
+            document.getElementById('summary-total').textContent = formatCurrency(summaryTotal);
+
+            // Micro-feedback: el total "late" cuando cambia de valor.
+            if (lastSummaryTotal !== null && lastSummaryTotal !== summaryTotal) {
+                AppMotion.pop(document.getElementById('summary-total'));
+            }
+            lastSummaryTotal = summaryTotal;
+        }
+
+        function createProductRowHtml() {
+            return `
+                <td class="border p-2 col-sku"><input type="text" class="editable-input sku" placeholder="SKU"></td>
+                <td class="border p-2 col-cantidad"><input type="number" class="editable-input quantity" value="1" min="1" step="1"></td>
+                <td class="border p-2 col-descripcion"><input type="text" class="editable-input description" placeholder="Descripción"></td>
+                <td class="border p-2 col-p-unitario"><input type="number" class="editable-input unit-price" value="0.00" min="0" step="0.01" title="Precio original sin descuentos"></td>
+                <td class="border p-2 text-right price-volume col-p-volumen" data-label="P. x Volumen">$0.00</td>
+                <td class="border p-2 col-costo-pago-unico"><input type="number" class="editable-input cost-payment-unique" value="" min="0" step="0.01" placeholder="Opcional" title="Precio final con descuento para esta línea"></td>
+                <td class="border p-2 col-desc-publico"><input type="number" class="editable-input discount-public-percent" value="0" min="0" max="100" step="0.01" title="Descuento público en %"></td>
+                <td class="border p-2 text-right price-with-public-discount col-precio-c-desc" data-label="Precio c/Desc. Púb.">$0.00</td>
+                <td class="border p-2 col-desc-adic-select">
+                    <select class="editable-input additional-discount-applied">
+                        <option value="No">No</option>
+                        <option value="Si">Si</option>
+                    </select>
+                </td>
+                <td class="border p-2 col-desc-adic-percent"><input type="number" class="editable-input additional-discount-percent" value="0" min="0" max="100" step="0.01" title="Descuento adicional en %"></td>
+                <td class="border p-2 text-right subtotal-row col-subtotal-base" data-label="Subtotal (Base)">$0.00</td>
+                <td class="border p-2 text-right vat-row col-iva" data-label="IVA (16%)">$0.00</td>
+                <td class="border p-2 text-right total-row font-semibold col-total-fila" data-label="Total Fila">$0.00</td>
+                <td class="border p-2 text-center no-print col-accion">
+                    <button class="v-btn v-btn-danger v-btn-sm" onclick="removeRow(this)">Eliminar</button>
+                </td>
+            `;
+        }
+
+        function animateRowIn(row) {
+            if (typeof gsap === 'undefined') return;
+            gsap.fromTo(row, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .35, ease: 'power2.out', clearProps: 'all' });
+        }
+
+        function addRow(focus = true) {
+            const newRow = document.createElement('tr');
+            newRow.classList.add('product-row');
+            newRow.innerHTML = createProductRowHtml();
+            productRowsContainer.appendChild(newRow);
+            addEventListenersToRow(newRow);
+            animateRowIn(newRow);
+            calculateTotals();
+            if (focus) {
+                const firstInput = newRow.querySelector('.sku');
+                if (firstInput) firstInput.focus();
+            }
+            return newRow;
+        }
+
+        function removeRow(button) {
+            const row = button.closest('.product-row');
+            if (!row) return;
+            if (typeof gsap !== 'undefined') {
+                gsap.to(row, {
+                    opacity: 0, x: 24, duration: .25, ease: 'power1.in',
+                    onComplete: () => { row.remove(); calculateTotals(); }
+                });
+            } else {
+                row.remove();
+                calculateTotals();
+            }
+        }
+
+        function addEventListenersToRow(row) {
+            row.querySelectorAll('.editable-input').forEach(input => {
+                input.addEventListener('input', (event) => calculateTotals(event.target));
+                input.addEventListener('change', (event) => calculateTotals(event.target));
+            });
+        }
+
+        function populateQuoteForm(quoteDetails) {
+            if (!quoteDetails) return;
+            currentQuoteFolioInput.value = quoteDetails.folio || '';
+            quoteFolioDisplay.textContent = quoteDetails.folio || 'NUEVO';
+            advisorNameInput.value = quoteDetails.advisorName || currentAdvisorName || '';
+            document.getElementById('advisor-ext').value = quoteDetails.advisorExt || '';
+            if (advisorEmailDisplay) advisorEmailDisplay.textContent = quoteDetails.advisorEmail || currentUserEmail || 'No disponible';
+            document.getElementById('client-name').value = quoteDetails.clientName || '';
+            document.getElementById('client-email').value = quoteDetails.clientEmail || '';
+            document.getElementById('client-phone').value = quoteDetails.clientPhone || '';
+            document.getElementById('observations').value = quoteDetails.observations || '';
+
+            productRowsContainer.innerHTML = '';
+            if (quoteDetails.products && Array.isArray(quoteDetails.products)) {
+                if (quoteDetails.products.length === 0) {
+                    addRow(false);
+                } else {
+                    quoteDetails.products.forEach(product => {
+                        const newRow = document.createElement('tr');
+                        newRow.classList.add('product-row');
+                        newRow.innerHTML = createProductRowHtml();
+                        newRow.querySelector('.sku').value = product.sku || '';
+                        newRow.querySelector('.quantity').value = product.quantity || 1;
+                        newRow.querySelector('.description').value = product.description || '';
+                        newRow.querySelector('.unit-price').value = product.unitPrice || 0;
+                        newRow.querySelector('.cost-payment-unique').value = product.costPaymentUnique ? product.costPaymentUnique : '';
+                        newRow.querySelector('.discount-public-percent').value = product.discountPublicPercent || 0;
+                        newRow.querySelector('.additional-discount-applied').value = product.additionalDiscountApplied || 'No';
+                        newRow.querySelector('.additional-discount-percent').value = product.additionalDiscountPercent || 0;
+                        newRow.setAttribute('data-image-url', product.imageUrl || '');
+                        productRowsContainer.appendChild(newRow);
+                        addEventListenersToRow(newRow);
+                    });
+                    AppMotion.staggerRows(productRowsContainer.querySelectorAll('.product-row'));
+                }
+            } else {
+                 addRow(false);
+            }
+            calculateTotals();
+        }
+
+        let selectedFormatId = null;
+
+        /**
+         * Dibuja las tarjetas de selección de formato. Los textos vienen del catálogo
+         * del servidor, así que agregar un formato nuevo no requiere tocar esta pantalla.
+         */
+        function renderFormatOptions(formats, defaultId) {
+            const container = document.getElementById('format-options');
+            if (!container) return;
+
+            if (!formats || formats.length === 0) {
+                container.innerHTML = '<p class="text-sm text-red-600">No hay formatos habilitados. Pide a un usuario avanzado que habilite al menos uno.</p>';
+                selectedFormatId = null;
+                return;
+            }
+
+            selectedFormatId = defaultId || formats[0].id;
+            container.innerHTML = formats.map(f => `
+                <label class="flex items-start gap-3 p-4 bg-white border border-gray-300 rounded-xl cursor-pointer hover:border-pink-400 hover:shadow-md transition-all">
+                    <input type="radio" name="quote-format" value="${f.id}" class="mt-1 accent-pink-600" ${f.id === selectedFormatId ? 'checked' : ''}>
+                    <span>
+                        <span class="block font-semibold text-gray-800">${f.name}</span>
+                        <span class="block text-sm text-gray-500">${f.description}</span>
+                    </span>
+                </label>
+            `).join('');
+
+            AppMotion.staggerRows(container.querySelectorAll('label'));
+
+            container.querySelectorAll('input[name="quote-format"]').forEach(input => {
+                input.addEventListener('change', () => { selectedFormatId = input.value; });
+            });
+
+            // Si la cotización en edición llegó antes que el catálogo, ahora sí se marca su formato.
+            if (pendingFormatFromQuote) setSelectedFormat(pendingFormatFromQuote);
+        }
+
+        function setSelectedFormat(formatId) {
+            if (!formatId) return;
+            const input = document.querySelector(`input[name="quote-format"][value="${formatId}"]`);
+            if (input) {
+                input.checked = true;
+                selectedFormatId = formatId;
+            }
+        }
+
+        function loadQuoteFormats(preferredId) {
+            const container = document.getElementById('format-options');
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response && response.success) {
+                        renderFormatOptions(response.formats, response.defaultId);
+                        if (preferredId) setSelectedFormat(preferredId);
+                    } else {
+                        container.innerHTML = '<p class="text-sm text-red-600">No se pudieron cargar los formatos disponibles.</p>';
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    container.innerHTML = '<p class="text-sm text-red-600">Error al cargar los formatos: ' + error.message + '</p>';
+                })
+                .getEnabledQuoteFormats();
+        }
+
+        let pendingFormatFromQuote = null;
+
+        function loadQuoteDetails(folio) {
+            showGeneralMessage('Cargando cotización...', false, false);
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response.success && response.quote) {
+                        populateQuoteForm(response.quote);
+                        // Si el catálogo de formatos aún no llega, se recuerda cuál marcar.
+                        pendingFormatFromQuote = response.quote.format;
+                        setSelectedFormat(response.quote.format);
+                        document.getElementById('edit-mode-badge').classList.remove('hidden');
+                        showGeneralMessage('Cotización cargada.', false);
+                    } else {
+                        showGeneralMessage(response.message || 'Error al cargar la cotización. Creando nueva.', true, false);
+                        currentQuoteFolioInput.value = '';
+                        quoteFolioDisplay.textContent = 'NUEVO';
+                        if (productRowsContainer.children.length === 0) addRow(false);
+                        else calculateTotals();
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showGeneralMessage('Error de comunicación al cargar cotización: ' + error.message, true, false);
+                    if (productRowsContainer.children.length === 0) addRow(false);
+                     else calculateTotals();
+                })
+                .getQuoteDetails(folio);
+        }
+
+        // --- Modal de importación ---
+        function openImportModal() {
+            AppMotion.modalIn(jsonModal, jsonModalCard);
+            handleAutoPasteImport();
+        }
+        function closeImportModal(clear = true) {
+            AppMotion.modalOut(jsonModal, jsonModalCard, () => {
+                if (clear) {
+                    document.getElementById('json-import-textarea').value = '';
+                    document.getElementById('json-import-error').style.display = 'none';
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireSession()) return;
+
+            loadQuoteFormats();
+
+            const today = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('current-date').textContent = today.toLocaleDateString('es-MX', options);
+
+            currentUserEmail = AppSession.userEmail;
+            currentAdvisorName = AppSession.userName;
+            if (advisorEmailDisplay) advisorEmailDisplay.textContent = currentUserEmail || 'No disponible';
+            if (advisorNameInput && !advisorNameInput.value && currentAdvisorName) {
+                 advisorNameInput.value = currentAdvisorName;
+            }
+
+            if (addRowButton) addRowButton.addEventListener('click', () => addRow());
+            // Volver a la pantalla de inicio que corresponde al rol del usuario.
+            if (cancelQuoteButtonTop) cancelQuoteButtonTop.addEventListener('click', () => AppUrl.goHome());
+
+            document.getElementById('import-json-btn').addEventListener('click', openImportModal);
+            document.getElementById('json-import-cancel').addEventListener('click', () => closeImportModal(true));
+            jsonModal.addEventListener('click', (e) => { if (e.target === jsonModal) closeImportModal(false); });
+
+            const folioFromUrl = AppUrl.param('folio');
+            const actionFromUrl = AppUrl.param('action');
+
+            if (folioFromUrl && actionFromUrl === 'edit') {
+                loadQuoteDetails(folioFromUrl);
+            } else {
+                currentQuoteFolioInput.value = '';
+                quoteFolioDisplay.textContent = 'NUEVO';
+                if (productRowsContainer.children.length === 0) {
+                    addRow(false);
+                } else {
+                    calculateTotals();
+                }
+            }
+        });
+
+        if (requestReviewButton) {
+            requestReviewButton.addEventListener('click', () => {
+                messageArea.classList.add('hidden');
+
+                const clientName = document.getElementById('client-name').value.trim();
+                if (!clientName) {
+                    showGeneralMessage('El nombre del cliente es obligatorio.', true, false);
+                    document.getElementById('client-name').focus();
+                    return;
+                }
+                if (productRowsContainer.children.length === 0) {
+                    showGeneralMessage('Debe añadir al menos un producto a la cotización.', true, false);
+                    return;
+                }
+                let hasValidProduct = false;
+                productRowsContainer.querySelectorAll('.product-row').forEach(row => {
+                    const sku = row.querySelector('.sku').value.trim();
+                    const description = row.querySelector('.description').value.trim();
+                    if (sku || description) {
+                        hasValidProduct = true;
+                    }
+                });
+                if (!hasValidProduct) {
+                    showGeneralMessage('Al menos un producto debe tener SKU o Descripción.', true, false);
+                    return;
+                }
+
+                if (!currentUserEmail) {
+                    showGeneralMessage('No se pudo identificar al asesor. Por favor, recarga la página o inicia sesión de nuevo.', true, false);
+                    return;
+                }
+
+                setLoadingState(true, requestReviewButton, reviewButtonText, "Ir a Vista Previa", reviewSpinner);
+
+                const quoteData = {
+                    folio: currentQuoteFolioInput.value || null,
+                    advisorName: advisorNameInput.value.trim() || currentAdvisorName,
+                    advisorExt: document.getElementById('advisor-ext').value.trim(),
+                    advisorEmail: currentUserEmail,
+                    clientName: clientName,
+                    clientEmail: document.getElementById('client-email').value.trim(),
+                    clientPhone: document.getElementById('client-phone').value.trim(),
+                    products: [],
+                    observations: document.getElementById('observations').value.trim(),
+                    summarySubtotal: parseCurrency(document.getElementById('summary-subtotal').textContent),
+                    summaryVat: parseCurrency(document.getElementById('summary-vat').textContent),
+                    summaryTotal: parseCurrency(document.getElementById('summary-total').textContent),
+                    // Se lee el radio marcado en el momento de guardar, no una variable que
+                    // pudo quedarse atrás si el catálogo cargó tarde.
+                    format: (document.querySelector('input[name="quote-format"]:checked') || {}).value || selectedFormatId,
+                    status: "Borrador Vista Previa"
+                };
+                productRowsContainer.querySelectorAll('.product-row').forEach(row => {
+                    quoteData.products.push({
+                        sku: row.querySelector('.sku').value.trim(),
+                        imageUrl: row.getAttribute('data-image-url') || '',
+                        quantity: parseInt(row.querySelector('.quantity').value) || 0,
+                        description: row.querySelector('.description').value.trim(),
+                        unitPrice: parseFloat(row.querySelector('.unit-price').value) || 0,
+                        costPaymentUnique: parseFloat(row.querySelector('.cost-payment-unique').value) || 0,
+                        discountPublicPercent: parseFloat(row.querySelector('.discount-public-percent').value) || 0,
+                        additionalDiscountApplied: row.querySelector('.additional-discount-applied').value,
+                        additionalDiscountPercent: parseFloat(row.querySelector('.additional-discount-percent').value) || 0
+                    });
+                });
+
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setLoadingState(false, requestReviewButton, reviewButtonText, "Ir a Vista Previa", reviewSpinner);
+                        if (response.success) {
+                            showGeneralMessage(response.message, false);
+                            try {
+                                currentQuoteFolioInput.value = response.folio;
+                                quoteData.folio = response.folio;
+
+                                localStorage.setItem('pendingQuoteData', JSON.stringify(quoteData));
+                                localStorage.setItem('pendingQuoteData_' + response.folio, JSON.stringify(quoteData));
+
+                                navigateToPage('cotizado_preview', { folio: response.folio });
+                            } catch (e) {
+                                console.error("Error al guardar en localStorage para vista previa:", e);
+                                showGeneralMessage('Error al preparar la vista previa localmente. Intente de nuevo.', true, false);
+                                 if (requestReviewButton) requestReviewButton.disabled = false;
+                            }
+                        } else {
+                            showGeneralMessage(response.message || 'Error desconocido al guardar la cotización en Sheets.', true, false);
+                             if (requestReviewButton) requestReviewButton.disabled = false;
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        setLoadingState(false, requestReviewButton, reviewButtonText, "Ir a Vista Previa", reviewSpinner);
+                        showGeneralMessage('Error de comunicación al guardar cotización: ' + error.message, true, false);
+                        console.error("Error en llamada a saveQuoteAndGoToPreview:", error);
+                         if (requestReviewButton) requestReviewButton.disabled = false;
+                    })
+                    .saveQuoteAndGoToPreview(quoteData);
+            });
+        }
+
+        /**
+         * Decide cómo se reparte el descuento de un producto de la Bolsa de Liverpool,
+         * con la misma regla que usa el importador de la hoja CCL:
+         *
+         *  - Si lo vende Liverpool, el descuento es "público" y va en la columna normal.
+         *  - Si lo vende un proveedor externo (marketplace), el descuento NO puede ir como
+         *    público: se marca como "Descuento Adicional", porque comercialmente son cosas
+         *    distintas aunque el importe sea el mismo.
+         *
+         * El JSON de la extensión trae el descuento implícito (unitPrice vs discountedUnitPrice)
+         * como fracción; el sistema trabaja con porcentajes de 0 a 100, de ahí el *100.
+         * Si el JSON ya viene con los campos calculados, se respetan tal cual.
+         *
+         * @param {object} product - Un elemento del arreglo "products" del JSON.
+         * @return {object} { publicPercent, additionalApplied, additionalPercent }
+         */
+        function interpretProductDiscount(product) {
+            // 1. El porcentaje de descuento, venga como venga el JSON.
+            const unitPrice = parseFloat(product.unitPrice) || 0;
+            const discountedPrice = parseFloat(product.discountedUnitPrice) || 0;
+
+            let discountPercent = 0;
+            if (unitPrice > 0 && discountedPrice > 0 && discountedPrice < unitPrice) {
+                discountPercent = ((unitPrice - discountedPrice) / unitPrice) * 100;
+            } else {
+                discountPercent = (parseFloat(product.discountPublicPercent) || 0) ||
+                                  (parseFloat(product.additionalDiscountPercent) || 0);
+            }
+
+            // 2. El vendedor decide en qué columna cae, y manda sobre cualquier campo
+            //    precalculado del JSON: un producto de marketplace nunca lleva descuento
+            //    público, aunque el JSON venga con ese campo lleno.
+            const soldBy = (product.soldBy || '').trim().toLowerCase();
+            if (soldBy) {
+                const esDeLiverpool = soldBy.indexOf('liverpool') !== -1;
+                return esDeLiverpool
+                    ? { publicPercent: discountPercent, additionalApplied: 'No', additionalPercent: 0, externo: false }
+                    : { publicPercent: 0, additionalApplied: 'Si', additionalPercent: discountPercent, externo: true };
+            }
+
+            // 3. Sin 'soldBy' no hay forma de saber quién vende: se respeta el JSON tal cual.
+            return {
+                publicPercent: parseFloat(product.discountPublicPercent) || 0,
+                additionalApplied: product.additionalDiscountApplied === 'Si' ? 'Si' : 'No',
+                additionalPercent: parseFloat(product.additionalDiscountPercent) || 0,
+                externo: product.additionalDiscountApplied === 'Si'
+            };
+        }
+
+        /**
+         * Lee automáticamente el portapapeles al abrir el modal de importación,
+         * y pega el JSON si tiene la estructura esperada de la extensión de Liverpool.
+         */
+        async function handleAutoPasteImport() {
+            try {
+                const clipboardText = await navigator.clipboard.readText();
+                const trimmed = clipboardText.trim();
+
+                if (trimmed.startsWith('{') && trimmed.includes('"products"') && trimmed.includes('"source"')) {
+                    document.getElementById('json-import-textarea').value = trimmed;
+                    const errorEl = document.getElementById('json-import-error');
+                    errorEl.style.display = 'block';
+                    errorEl.style.color = '#10B981';
+                    errorEl.textContent = '⚡ JSON detectado y pegado automáticamente desde tu portapapeles.';
+                }
+            } catch (err) {
+                console.log("La lectura automática del portapapeles no fue permitida o no es compatible:", err);
+            }
+        }
+
+        /**
+         * Importa productos desde un JSON generado por la extensión de Chrome.
+         * Formato esperado: { products: [{ sku, description, quantity, unitPrice, costPaymentUnique, ... }] }
+         */
+        function importJsonProducts() {
+            const textarea = document.getElementById('json-import-textarea');
+            const errorEl = document.getElementById('json-import-error');
+            errorEl.style.display = 'none';
+            errorEl.style.color = '#dc2626';
+
+            const raw = textarea.value.trim();
+            if (!raw) {
+                errorEl.textContent = 'Por favor, pega el JSON antes de importar.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            let data;
+            try {
+                data = JSON.parse(raw);
+            } catch (e) {
+                errorEl.textContent = 'El texto no es un JSON válido. Verifica el formato e intenta de nuevo.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (!data.products || !Array.isArray(data.products) || data.products.length === 0) {
+                errorEl.textContent = 'El JSON no contiene un arreglo "products" válido o está vacío.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            // Limpiar filas existentes vacías (sin SKU ni descripción)
+            const existingRows = productRowsContainer.querySelectorAll('.product-row');
+            existingRows.forEach(row => {
+                const sku = row.querySelector('.sku').value.trim();
+                const desc = row.querySelector('.description').value.trim();
+                if (!sku && !desc) {
+                    row.remove();
+                }
+            });
+
+            // Agregar cada producto del JSON como una nueva fila
+            let externos = 0;
+            let sinVendedor = 0;
+            const newRows = [];
+
+            data.products.forEach(product => {
+                const newRow = document.createElement('tr');
+                newRow.classList.add('product-row');
+                newRow.innerHTML = createProductRowHtml();
+
+                const discount = interpretProductDiscount(product);
+                if (discount.externo) externos++;
+                if (!product.soldBy) sinVendedor++;
+
+                newRow.querySelector('.sku').value = product.sku || '';
+                newRow.querySelector('.quantity').value = product.quantity || 1;
+                newRow.querySelector('.description').value = product.description || '';
+                newRow.querySelector('.unit-price').value = product.unitPrice || 0;
+                newRow.setAttribute('data-image-url', product.imageUrl || '');
+
+                if (product.costPaymentUnique && product.costPaymentUnique > 0) {
+                    newRow.querySelector('.cost-payment-unique').value = product.costPaymentUnique;
+                }
+
+                if (discount.publicPercent > 0) {
+                    newRow.querySelector('.discount-public-percent').value = discount.publicPercent;
+                }
+
+                if (discount.additionalApplied === 'Si') {
+                    newRow.querySelector('.additional-discount-applied').value = 'Si';
+                    newRow.querySelector('.additional-discount-percent').value = discount.additionalPercent;
+                }
+
+                productRowsContainer.appendChild(newRow);
+                addEventListenersToRow(newRow);
+                newRows.push(newRow);
+            });
+
+            calculateTotals();
+            AppMotion.staggerRows(newRows);
+
+            closeImportModal(true);
+
+            // Se reporta cómo se interpretó el vendedor: si el JSON no trae 'soldBy', la regla
+            // del proveedor externo no puede aplicarse y hay que saberlo, no adivinarlo.
+            let resumen = '✅ ' + data.products.length + ' producto(s) importados desde la extensión.';
+            if (externos > 0) {
+                resumen += ` ${externos} de proveedor externo: su descuento se marcó como Descuento Adicional.`;
+            }
+            if (sinVendedor > 0) {
+                resumen += ` ⚠️ ${sinVendedor} sin el campo "soldBy" en el JSON: no se pudo saber quién los vende y se respetó el descuento tal como venía.`;
+            }
+            showGeneralMessage(resumen, false);
+        }
+    </script>
+
+</body>
+</html>
