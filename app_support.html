@@ -1,0 +1,110 @@
+<script>
+/**
+ * =====================================================================================
+ * MODAL DE SOPORTE | Sistema de cotizaciones Ventel
+ * =====================================================================================
+ * Sustituye los enlaces mailto de los pies de página. Se incluye DESPUÉS de
+ * app_core / app_icons / app_motion y se dispara con cualquier elemento que
+ * tenga el atributo data-support-link (o llamando AppSupport.open()).
+ *
+ * El modal se inyecta por JS para que ninguna pantalla tenga que duplicar el markup.
+ */
+(function () {
+  const SUPPORT_EMAIL = 'dmartineza02@liverpool.com.mx';
+  const SUPPORT_NAME = 'David Martínez — Asesor Ventel';
+
+  let overlay = null;
+  let card = null;
+
+  function icon(name, cls) {
+    return (window.Icons && Icons.svg) ? Icons.svg(name, cls || 'w-5 h-5') : '';
+  }
+
+  function buildModal() {
+    if (overlay) return;
+    overlay = document.createElement('div');
+    overlay.className = 'v-modal-overlay';
+    overlay.id = 'support-modal-overlay';
+    overlay.innerHTML = `
+      <div class="v-modal" role="dialog" aria-modal="true" aria-labelledby="support-modal-title" style="max-width: 26rem;">
+        <div style="display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem;">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:2.5rem; height:2.5rem; border-radius:12px; background:#fce7f3; color:#E10098; flex:none;">
+            ${icon('mail', 'w-5 h-5')}
+          </span>
+          <h3 id="support-modal-title" style="font-size:1.15rem; font-weight:700; color:#0f172a; margin:0;">Contacta al equipo de Ventel</h3>
+        </div>
+        <p style="color:#475569; font-size:.9rem; line-height:1.55; margin:0 0 1rem 0;">
+          ¿Tienes dudas, encontraste un problema o necesitas un acceso? El equipo de Ventel te apoya directamente.
+        </p>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:.9rem 1rem; margin-bottom:1.25rem;">
+          <p style="font-size:.8rem; font-weight:600; color:#64748b; margin:0 0 .15rem 0;">${SUPPORT_NAME}</p>
+          <p id="support-modal-email" style="font-size:.95rem; font-weight:700; color:#E10098; margin:0; word-break:break-all;">${SUPPORT_EMAIL}</p>
+        </div>
+        <div style="display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end;">
+          <button type="button" id="support-modal-close" class="v-btn v-btn-ghost v-btn-sm">Cerrar</button>
+          <button type="button" id="support-modal-copy" class="v-btn v-btn-dark v-btn-sm">
+            ${icon('document', 'w-4 h-4')}
+            Copiar correo
+          </button>
+          <a href="mailto:${SUPPORT_EMAIL}?subject=Soporte%20Sistema%20de%20Cotizaciones%20Ventel" id="support-modal-write" class="v-btn v-btn-primary v-btn-sm">
+            ${icon('send', 'w-4 h-4')}
+            Escribir correo
+          </a>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    card = overlay.querySelector('.v-modal');
+
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    overlay.querySelector('#support-modal-close').addEventListener('click', close);
+    overlay.querySelector('#support-modal-copy').addEventListener('click', function () {
+      const done = function () {
+        if (window.AppMotion) AppMotion.toast('Correo de soporte copiado: ' + SUPPORT_EMAIL, 'ok');
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(SUPPORT_EMAIL).then(done, function () { fallbackCopy(); done(); });
+      } else {
+        fallbackCopy();
+        done();
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('active')) close();
+    });
+  }
+
+  function fallbackCopy() {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = SUPPORT_EMAIL;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    } catch (e) {}
+  }
+
+  function open() {
+    buildModal();
+    if (window.Icons && Icons.render) Icons.render(overlay);
+    if (window.AppMotion && AppMotion.modalIn) AppMotion.modalIn(overlay, card);
+    else overlay.classList.add('active');
+  }
+
+  function close() {
+    if (!overlay) return;
+    if (window.AppMotion && AppMotion.modalOut) AppMotion.modalOut(overlay, card);
+    else overlay.classList.remove('active');
+  }
+
+  window.AppSupport = { open: open, close: close, email: SUPPORT_EMAIL };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-support-link]').forEach(function (el) {
+      el.addEventListener('click', function (e) { e.preventDefault(); open(); });
+    });
+  });
+})();
+</script>
