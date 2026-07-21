@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vista Previa de Cotización - Sistema Ventel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <?!= include('app_theme'); ?>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            color: #333;
+            background-color: #f4f4f5; 
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .preview-controls {
+            width: 100%;
+            max-width: 980px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            padding: 15px 20px;
+            background-color: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .preview-controls .actions {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        /* --- ESTILOS DE BOTÓN MODERNIZADOS --- */
+        .btn { 
+            padding: 10px 22px; 
+            border-radius: 8px;
+            cursor: pointer; 
+            transition: all 0.2s ease-in-out;
+            font-weight: 600; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 0.6rem;
+            border: 1px solid transparent; 
+            line-height: 1.25;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .btn:hover:not(:disabled) { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.08);
+        }
+        .btn:active:not(:disabled) { 
+            transform: translateY(0px); 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn svg {
+            width: 1.1em;
+            height: 1.1em;
+        }
+        
+        .btn-green { background-color: #10B981; color: white; }
+        .btn-green:hover:not(:disabled) { background-color: #059669; }
+        .btn-gray { background-color: #6b7280; color: white; } 
+        .btn-gray:hover:not(:disabled) { background-color: #4b5563; }
+        .btn-pink { background-color: #E10098; color: white; }
+        .btn-pink:hover:not(:disabled) { background-color: #c10080; }
+
+        .container-pdf {
+            width: 215.9mm;
+            padding: 0; 
+            margin: 0 auto; 
+            background-color: #ffffff;
+            box-shadow: 0 0 15px rgba(0,0,0,0.15); 
+            box-sizing: border-box;
+            font-size: 11pt; 
+            line-height: 1.4;
+            position: relative;
+        }
+        .pdf-content-wrapper { 
+             padding: 20mm 15mm 20mm 15mm; 
+        }
+
+        header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E10098; padding-bottom: 15px; margin-bottom: 25px; }
+        .header-left h1 { font-size: 24px; font-weight: 700; color: #E10098; margin: 0 0 5px 0; }
+        .header-left p { font-size: 11px; margin: 2px 0; color: #4A4A4A; }
+        
+        .header-right { display: flex; flex-direction: column; align-items: flex-end; }
+        .header-right img { max-height: 40px; width: auto; margin-bottom: 8px; }
+        .header-right p { font-size: 10px; margin: 2px 0; color: #666666; }
+        
+        .section-title { font-size: 14px; font-weight: 700; color: #E10098; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #eeeeee; padding-bottom: 4px; }
+        
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 11px; }
+        .info-grid strong { font-weight: 500; } .info-grid p { margin: 2px 0; line-height: 1.5; }
+        .info-box { background-color: #fdfdfd; padding: 10px; border-radius: 4px; border: 1px solid #f0f0f0; }
+        
+        table.products-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt; table-layout: fixed; }
+        table.products-table th, table.products-table td { border: 1px solid #dddddd; padding: 6px 8px; text-align: left; vertical-align: top; word-break: break-word; }
+        table.products-table th { background-color: #f5f5f5; font-weight: 700; white-space: nowrap;}
+        table.products-table td.text-right, table.products-table th.text-right { text-align: right; }
+        .totals-section { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+        .totals-table { width: 45%; font-size: 10pt; }
+        .totals-table td { padding: 6px 8px; border-bottom: 1px solid #eeeeee; }
+        .totals-table td:last-child { text-align: right; font-weight: 500; }
+        .totals-table tr:last-child td { font-size: 12pt; font-weight: 700; color: #E10098; border-top: 2px solid #333333; padding-top: 8px;}
+        .observations-section { margin-top: 15px; margin-bottom: 20px; font-size: 10pt; padding: 10px; background-color: #fdfdfd; border-radius: 4px; border: 1px solid #f0f0f0;}
+        .observations-section p { white-space: pre-wrap; margin: 0; line-height: 1.5; }
+        .terms-section { font-size: 8pt; color: #555555; margin-top: 20px; line-height: 1.3; }
+        footer.pdf-footer { font-size: 8pt; color: #888888; text-align: center; border-top: 1px solid #eeeeee; padding-top: 10px; margin-top: 25px; }
+        footer.pdf-footer p { margin: 2px 0; }
+        
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #ffffff; width: 16px; height: 16px; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #preview-message-area,
+        #success-confirmation-area-preview {
+             width: 100%; max-width: 800px; margin: 0 auto 15px auto; padding: 12px;
+             border-radius: 6px; text-align: center; font-size: 0.9rem;
+        }
+        #success-confirmation-area-preview {
+            margin: 20px auto; padding: 25px; border: 2px solid #10B981; 
+            background-color: #D1FAE5; color: #065F46;
+        }
+
+        /* --- ANIMACIÓN DE CARGA Y REDIRECCIÓN --- */
+        #loading-overlay {
+            position: absolute; inset: 0; background-color: rgba(255, 255, 255, 0.95);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 10; transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
+            opacity: 1; visibility: visible;
+        }
+        #loading-overlay.hidden { opacity: 0; visibility: hidden; }
+
+        #redirect-overlay {
+            position: fixed; inset: 0; background-color: rgba(255, 255, 255, 0.9);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; opacity: 1; visibility: visible; transition: opacity 0.3s ease;
+        }
+        #redirect-overlay.hidden { opacity: 0; visibility: hidden; display: none; }
+
+        .modern-spinner {
+            width: 56px; height: 56px; border-radius: 50%;
+            border: 5px solid #f0f0f0; border-top-color: #E10098;
+            animation: modern-spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes modern-spin { to { transform: rotate(360deg); } }
+        
+        .loading-text { font-size: 1rem; font-weight: 500; color: #4A4A4A; }
+
+        /* --- ESTILOS DE IMPRESIÓN OPTIMIZADOS PARA ALTA CALIDAD --- */
+        @media print {
+            /* Resetea el body para que ocupe todo el espacio de impresión */
+            body {
+                padding: 0;
+                margin: 0;
+                background-color: #fff;
+                -webkit-print-color-adjust: exact; /* Fuerza la impresión de colores en Chrome/Safari */
+                print-color-adjust: exact; /* Estándar para forzar la impresión de colores */
+            }
+
+            /* Oculta todos los elementos de la página por defecto */
+            body * {
+                visibility: hidden;
+            }
+            
+            /* Hace visible únicamente el contenedor de la vista previa y su contenido.
+               Se incluye el CCL para que Ctrl+P imprima la vista que está en pantalla;
+               el PDF oficial no sale de aquí, lo exporta Google Sheets. */
+            #pdf-preview-content, #pdf-preview-content *,
+            #ccl-preview-content, #ccl-preview-content * {
+                visibility: visible;
+            }
+
+            /* Un contenedor oculto no debe reaparecer al imprimir */
+            #pdf-preview-content.hidden, #pdf-preview-content.hidden *,
+            #ccl-preview-content.hidden, #ccl-preview-content.hidden * {
+                visibility: hidden;
+            }
+
+            /* Posiciona el contenedor para que ocupe toda la página de impresión */
+            #pdf-preview-content, #ccl-preview-content {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                font-size: 10pt; /* Ajuste opcional del tamaño de fuente para impresión */
+                border: none;
+            }
+
+            #ccl-preview-content { box-shadow: none; }
+
+            /* Ajustes finos al contenedor para eliminar efectos visuales no deseados en la impresión */
+            .container-pdf {
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                border: none !important;
+            }
+            .pdf-content-wrapper {
+                padding: 15mm !important; /* Asegura un margen consistente en la hoja */
+            }
+
+            /* --- CONTROL INTELIGENTE DE SALTOS DE PÁGINA --- */
+            /* Evita que estos elementos se corten entre dos páginas */
+            header, .info-grid, .info-box, .section-title, table.products-table thead, footer.pdf-footer, .terms-section, .observations-section {
+                page-break-inside: avoid;
+            }
+            /* Evita que las filas individuales de la tabla se corten */
+            table.products-table tbody tr {
+                page-break-inside: avoid;
+            }
+            /* Permite un salto de página ANTES de la sección de totales si es necesario, pero no DENTRO de ella */
+            .totals-section {
+                page-break-before: auto;
+                page-break-inside: avoid;
+            }
+            
+            /* Oculta explícitamente los controles y otros elementos de UI que no deben imprimirse */
+            .preview-controls, #preview-message-area, #success-confirmation-area-preview, #loading-overlay, #redirect-overlay, #downloadSpinner {
+                display: none !important;
+            }
+        }
+        /* --- VISTA PREVIA DEL FORMATO CCL ---
+           Replica la plantilla de Sheets: horizontal, tabla de 12 columnas y bloques
+           de vendedor/cliente. Es una representación en pantalla, no el PDF final:
+           el PDF lo exporta Google Sheets desde la hoja real. */
+        .ccl-sheet {
+            width: 100%;
+            max-width: 1100px;
+            background: #fff;
+            padding: 28px 32px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-size: 11px;
+            color: #222;
+        }
+        .ccl-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 2px solid #E10098;
+            padding-bottom: 12px;
+        }
+        .ccl-logo { height: 38px; width: auto; }
+        .ccl-header-text { flex: 1; text-align: center; }
+        .ccl-contacto { font-size: 10px; color: #555; margin: 0 0 4px 0; }
+        .ccl-titulo { font-size: 15px; font-weight: 700; color: #E10098; margin: 0; letter-spacing: 0.5px; }
+        .ccl-fecha { font-size: 10px; color: #555; margin: 4px 0 0 0; }
+        .ccl-entrega { text-align: center; margin: 14px 0 18px 0; font-size: 11px; }
+
+        .ccl-partes { display: flex; gap: 16px; margin-bottom: 18px; }
+        .ccl-parte { flex: 1; border: 1px solid #d9d9d9; border-radius: 4px; overflow: hidden; }
+        .ccl-parte-titulo {
+            background: #E10098;
+            color: #fff;
+            font-weight: 700;
+            text-align: center;
+            padding: 5px;
+            letter-spacing: 1px;
+            font-size: 11px;
+        }
+        .ccl-parte-cuerpo { padding: 10px 12px; }
+        .ccl-parte-cuerpo p { margin: 2px 0; line-height: 1.45; }
+        .ccl-parte-nombre { font-weight: 700; font-size: 12px; }
+
+        .ccl-tabla { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 10px; }
+        .ccl-tabla th {
+            background: #f1f1f1;
+            border: 1px solid #bfbfbf;
+            padding: 6px 4px;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.25;
+        }
+        .ccl-tabla td {
+            border: 1px solid #bfbfbf;
+            padding: 6px 4px;
+            text-align: right;
+            vertical-align: middle;
+        }
+        .ccl-tabla td.ccl-txt { text-align: left; }
+        .ccl-tabla td.ccl-cen { text-align: center; }
+        .ccl-col-desc { width: 26%; }
+
+        .ccl-pie { display: flex; gap: 16px; align-items: flex-start; }
+        .ccl-info { flex: 1; border: 1px solid #d9d9d9; border-radius: 4px; overflow: hidden; }
+        .ccl-info-titulo {
+            background: #E10098;
+            color: #fff;
+            font-weight: 700;
+            text-align: center;
+            padding: 5px;
+            letter-spacing: 1px;
+            font-size: 11px;
+        }
+        .ccl-info p { margin: 0; padding: 10px 12px; }
+        .ccl-totales { width: 38%; border-collapse: collapse; }
+        .ccl-totales td { border: 1px solid #bfbfbf; padding: 6px 10px; }
+        .ccl-totales td:first-child { font-weight: 700; letter-spacing: 1px; background: #f1f1f1; }
+        .ccl-totales td:last-child { text-align: right; }
+        .ccl-total-final td { background: #fce4f3; color: #E10098; font-weight: 700; font-size: 12px; }
+
+        /* Define el tamaño de página y elimina los márgenes del navegador */
+        @page {
+            size: letter;
+            margin: 0mm;
+        }
+    </style>
+</head>
+<body>
+    <div id="preview-message-area" class="hidden"></div>
+
+    <div id="success-confirmation-area-preview" class="hidden">
+        <div class="flex justify-center mb-4"><span class="text-5xl text-green-600">✅</span></div>
+        <h2 class="text-xl font-semibold mb-2">¡Proceso Completado!</h2>
+        <p class="mb-1">Cotización <strong id="final-folio-display"></strong> guardada y PDF generado.</p>
+        <p class="mb-1">Puedes ver o descargar el PDF desde el siguiente enlace:</p>
+        <p class="my-3"><a id="final-pdf-link" href="#" target="_blank" class="v-btn v-btn-primary"><span data-icon="download"></span>Ver / Descargar PDF</a></p>
+        <p class="mb-4 text-sm">Recibirás una notificación por correo electrónico una vez que haya sido revisada y aprobada.</p>
+        <button id="return-to-dashboard-button" class="v-btn v-btn-ghost"><span data-icon="home"></span><span>Volver al Inicio</span></button>
+    </div>
+
+    <div class="preview-controls" id="preview-action-buttons" data-animate>
+        <div>
+            <h2 class="text-lg font-semibold text-gray-700">Vista Previa de Cotización</h2>
+            <div class="flex items-center gap-2 mt-1">
+                <label for="format-select" class="text-sm text-gray-500">Formato:</label>
+                <select id="format-select" class="v-select" style="width:auto; padding:.35rem .6rem; font-size:.85rem;" disabled>
+                    <option value="">Cargando...</option>
+                </select>
+            </div>
+        </div>
+        <div class="actions">
+            <button id="go-to-home-button" class="v-btn v-btn-ghost">
+                <span data-icon="home"></span>
+                <span>Regresar a Inicio</span>
+            </button>
+            <button id="edit-quote-button" class="v-btn v-btn-indigo" title="Regresar al formulario para corregir esta cotización">
+                <span data-icon="pencil"></span>
+                <span>Editar Cotización</span>
+            </button>
+            <button id="download-pdf-button" class="v-btn v-btn-success">
+                <span data-icon="download"></span>
+                <span id="downloadButtonText">Descargar PDF</span>
+                <div id="downloadSpinner" class="spinner hidden"></div>
+            </button>
+            <button id="send-by-email-button" class="v-btn v-btn-primary">
+                <span data-icon="mail"></span>
+                <span>Enviar por Correo</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="container-pdf" id="pdf-preview-content">
+        <div id="loading-overlay">
+            <div class="modern-spinner"></div>
+            <p class="loading-text">Preparando vista previa...</p>
+        </div>
+        <div class="pdf-content-wrapper"> 
+            <header>
+                <div class="header-left">
+                    <h1>COTIZACIÓN</h1>
+                    <p><strong>Folio:</strong> <span id="preview-folio">CARGANDO...</span></p>
+                    <p><strong>Fecha de Emisión:</strong> <span id="preview-fechaEmision"></span></p>
+                </div>
+                <div class="header-right">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Logo Liverpool" style="max-height: 42px; width: auto;">
+                    <p>Centro de Contacto Liverpool</p>
+                    <p>postventaomnicanal@liverpool.com.mx</p>
+                    <p>Tel: 55 5262 9999, opción 3 (preguntar por ext: <span id="preview-asesorExtension"></span>)</p>
+                </div>
+            </header>
+            <div class="info-grid">
+                <div class="info-box">
+                    <h2 class="section-title" style="margin-top:0;">Información del Asesor</h2>
+                    <p><strong>Nombre:</strong> <span id="preview-asesorNombre"></span></p>
+                    <p><strong>Puesto:</strong> Asesor de Ventas por Teléfono e Internet</p>
+                    <p><strong>Extensión:</strong> <span id="preview-asesorExtension-body"></span></p>
+                </div>
+                <div class="info-box">
+                    <h2 class="section-title" style="margin-top:0;">Información del Cliente</h2>
+                    <p><strong>Dirigida a:</strong> <span id="preview-clienteNombre"></span></p>
+                    <p><strong>Correo:</strong> <span id="preview-clienteEmail"></span></p>
+                    <p><strong>Teléfono:</strong> <span id="preview-clienteTelefono"></span></p>
+                </div>
+            </div>
+            <h2 class="section-title">Detalle de Productos</h2>
+            <table class="products-table">
+                <thead>
+                    <tr>
+                        <th style="width: 14%;">SKU</th>
+                        <th style="width: 7%; text-align: center;">Cant.</th>
+                        <th style="width: 26%;">Descripción</th>
+                        <th style="width: 12%; text-align: right;">P. Unitario</th>
+                        <th style="width: 13%; text-align: right;">P. x Volumen</th>
+                        <th style="width: 14%; text-align: right;">Desc. Aplicado</th>
+                        <th style="width: 14%; text-align: right;">Total Fila</th>
+                    </tr>
+                </thead>
+                <tbody id="preview-productos-tbody">
+                </tbody>
+            </table>
+            <div class="totals-section">
+                <table class="totals-table">
+                    <tbody>
+                        <tr><td>SUBTOTAL (Base Imponible):</td><td id="preview-subtotalGeneral"></td></tr>
+                        <tr><td>IVA (16%):</td><td id="preview-ivaGeneral"></td></tr>
+                        <tr><td><strong>TOTAL A PAGAR:</strong></td><td><strong id="preview-totalGeneral"></strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="preview-observaciones-section" class="observations-section hidden"> <h2 class="section-title" style="margin-top:0; margin-bottom: 8px;">Observaciones Adicionales</h2>
+                <p id="preview-observaciones"></p>
+            </div>
+            <div class="terms-section">
+                <p>Precios y promociones sujetos a cambio sin previo aviso. Los precios incluyen IVA. La disponibilidad de los artículos está sujeta a existencias al momento de realizar la compra.</p>
+            </div>
+            <footer class="pdf-footer">
+                <p>Gracias por su preferencia.</p>
+                <p>Liverpool - Es parte de mi vida</p>
+            </footer>
+        </div>
+    </div>
+
+    <!--
+        VISTA PREVIA DEL FORMATO CCL
+        Réplica en pantalla de la plantilla de Google Sheets. Los números se calculan con
+        las mismas fórmulas de la hoja para que lo que se ve aquí sea lo que sale en el PDF.
+    -->
+    <div class="ccl-sheet hidden" id="ccl-preview-content">
+        <div class="ccl-header">
+            <img class="ccl-logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Liverpool_logo.svg/1280px-Liverpool_logo.svg.png" alt="Liverpool">
+            <div class="ccl-header-text">
+                <p class="ccl-contacto">Centro de Contacto Liverpool (CCL) Ventas por Teléfono 55 52 62 99 99 Opción 3</p>
+                <h1 class="ccl-titulo">C O T I Z A C I Ó N&nbsp;&nbsp;&nbsp;V E N T A S&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;D I S T A N C I A</h1>
+                <p class="ccl-fecha" id="ccl-fecha"></p>
+            </div>
+        </div>
+
+        <p class="ccl-entrega">Por medio de la presente, hago entrega de la cotizacion solicitada.</p>
+
+        <div class="ccl-partes">
+            <div class="ccl-parte">
+                <div class="ccl-parte-titulo">V E N D E D O R</div>
+                <div class="ccl-parte-cuerpo">
+                    <p class="ccl-parte-nombre" id="ccl-asesorNombre"></p>
+                    <p>Asesor de Ventas por Teléfono e Internet</p>
+                    <p>postventaomnicanal@liverpool.com.mx</p>
+                    <p id="ccl-asesorTelefono">55-52-62-99-99 / Pregunte por su asesor</p>
+                </div>
+            </div>
+            <div class="ccl-parte">
+                <div class="ccl-parte-titulo">C L I E N T E</div>
+                <div class="ccl-parte-cuerpo">
+                    <p class="ccl-parte-nombre" id="ccl-clienteNombre"></p>
+                    <p id="ccl-clienteEmail"></p>
+                    <p id="ccl-clienteTelefono"></p>
+                    <p id="ccl-clienteObservacion"></p>
+                </div>
+            </div>
+        </div>
+
+        <table class="ccl-tabla">
+            <thead>
+                <tr>
+                    <th>Sku</th>
+                    <th>Cantidad</th>
+                    <th class="ccl-col-desc">Descripción</th>
+                    <th>Precio Unitario</th>
+                    <th>Precio por volumen</th>
+                    <th>Descuento</th>
+                    <th>Precio con descuento</th>
+                    <th>Subtotal</th>
+                    <th>IVA</th>
+                    <th>Descuento Adicional</th>
+                    <th>% Descuento Adicional</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody id="ccl-productos-tbody"></tbody>
+        </table>
+
+        <div class="ccl-pie">
+            <div class="ccl-info">
+                <div class="ccl-info-titulo">I N F O R M A C I Ó N&nbsp;&nbsp;&nbsp;A D I C I O N A L</div>
+                <p>Disponibilidad, precios y promociones sujetas a cambios sin previo aviso.</p>
+            </div>
+            <table class="ccl-totales">
+                <tbody>
+                    <tr><td>S U B T O T A L</td><td id="ccl-subtotal"></td></tr>
+                    <tr><td>I V A</td><td id="ccl-iva"></td></tr>
+                    <tr class="ccl-total-final"><td>T O T A L</td><td id="ccl-total"></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="redirect-overlay" class="hidden">
+        <div class="modern-spinner"></div>
+        <p class="loading-text">Redirigiendo al inicio...</p>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN DE ENVÍO -->
+    <div id="email-confirmation-modal" class="v-modal-overlay">
+        <div class="v-modal" style="max-width: 450px;">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="bg-pink-100 p-2 rounded-full text-pink-600">
+                    <span class="w-6 h-6 block" data-icon="warning"></span>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">¿Los datos son correctos?</h3>
+            </div>
+            <p class="text-sm text-gray-600 mb-6 leading-relaxed text-left">
+                Por favor, tómate un momento para revisar detalladamente la información. Asegúrate de que el nombre del cliente, su correo, teléfono y los precios de los productos estén correctos antes de proceder al envío.
+            </p>
+            <div class="flex justify-end gap-3">
+                <button id="modal-cancel-button" class="v-btn v-btn-ghost v-btn-sm">Cancelar</button>
+                <button id="modal-confirm-button" class="v-btn v-btn-primary v-btn-sm">Sí, ir a enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.__APP__ = { baseUrl: <?!= JSON.stringify(baseUrl) ?>, folio: <?!= JSON.stringify(folio) ?> };
+    </script>
+    <?!= include('app_core'); ?>
+    <?!= include('app_icons'); ?>
+    <?!= include('app_motion'); ?>
+    <script>
+        let quoteDataForSave = null;
+        let currentUserEmailForSave = null;
+        let currentFolioForPreview = null;
+
+        function hideLoader() {
+            const loader = document.getElementById('loading-overlay');
+            if (loader) loader.classList.add('hidden');
+        }
+
+        function formatCurrencyJS(amount) {
+            if (isNaN(parseFloat(amount))) return "$0.00";
+            return parseFloat(amount).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+        }
+        
+        function showPreviewMessage(text, isError = false) {
+            const area = document.getElementById('preview-message-area');
+            area.textContent = text;
+            area.className = `mb-4 p-3 rounded-md text-center text-sm font-medium ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            area.classList.remove('hidden');
+            if (!isError) {
+                setTimeout(() => { 
+                    if (area.textContent === text) { 
+                        area.classList.add('hidden');
+                    }
+                }, 4000);
+            }
+        }
+
+        let selectedFormatId = null;
+
+        /**
+         * Llena el selector de formatos. 'preferredId' es el formato con el que se guardó
+         * la cotización; si ese formato ya se deshabilitó, se cae al predeterminado.
+         */
+        function loadPreviewFormats(preferredId) {
+            const select = document.getElementById('format-select');
+            if (!select) return;
+
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                select.innerHTML = '<option value="">Formatos no disponibles</option>';
+                return;
+            }
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (!response || !response.success || !response.formats || response.formats.length === 0) {
+                        select.innerHTML = '<option value="">Sin formatos disponibles</option>';
+                        return;
+                    }
+
+                    selectedFormatId = response.formats.some(f => f.id === preferredId)
+                        ? preferredId
+                        : response.defaultId;
+
+                    select.innerHTML = response.formats
+                        .map(f => `<option value="${f.id}" ${f.id === selectedFormatId ? 'selected' : ''}>${f.name}</option>`)
+                        .join('');
+                    select.disabled = false;
+                    select.addEventListener('change', () => {
+                        selectedFormatId = select.value;
+                        applyPreviewFormat(selectedFormatId);
+                    });
+                    applyPreviewFormat(selectedFormatId);
+                })
+                .withFailureHandler(function() {
+                    select.innerHTML = '<option value="">Error al cargar formatos</option>';
+                })
+                .getEnabledQuoteFormats();
+        }
+
+        /**
+         * Convierte el PDF que llega en base64 desde el servidor en una descarga del navegador.
+         * google.script.run no puede transportar Blobs, de ahí el rodeo por base64.
+         */
+        function triggerPdfDownload(file) {
+            const binary = atob(file.base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+            const blobUrl = URL.createObjectURL(new Blob([bytes], { type: file.mimeType }));
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = file.fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        }
+
+        /**
+         * Calcula una fila del formato CCL con las mismas fórmulas que la plantilla de Sheets:
+         *   I = H*B          (precio por volumen)
+         *   K = I-(I*J)      (precio con descuento)
+         *   P = K-(O*K)      (total)
+         *   L = IF(N="NO", K/1.16, P/1.16)   (subtotal sin IVA)
+         *   M = base - L                      (IVA)
+         * Debe seguir igual que buildCclProductRow_ en Formatos.gs: si una cambia, la otra también.
+         */
+        function computeCclRow(p) {
+            const quantity = parseInt(p.quantity) || 0;
+            const unitPrice = parseFloat(p.unitPrice) || 0;
+            const costPaymentUnique = parseFloat(p.costPaymentUnique) || 0;
+            const priceVolume = unitPrice * quantity;
+
+            let discountFraction = (parseFloat(p.discountPublicPercent) || 0) / 100;
+            let additionalApplied = p.additionalDiscountApplied === 'Si' ? 'Si' : 'No';
+            let additionalFraction = (parseFloat(p.additionalDiscountPercent) || 0) / 100;
+
+            // El pago único no existe en el CCL: se traduce al descuento equivalente.
+            // Si el asesor marcó descuento ADICIONAL, se conserva en su columna (O) en
+            // lugar de pisarlo como descuento público (J). Igual que buildCclProductRow_.
+            if (costPaymentUnique > 0 && priceVolume > 0) {
+                if (additionalApplied === 'Si') {
+                    const priceWithPublic = priceVolume * (1 - discountFraction);
+                    additionalFraction = priceWithPublic > 0
+                        ? Math.min(1, Math.max(0, 1 - (costPaymentUnique / priceWithPublic)))
+                        : 0;
+                } else {
+                    discountFraction = Math.max(0, 1 - (costPaymentUnique / priceVolume));
+                    additionalFraction = 0;
+                }
+            }
+
+            const priceWithDiscount = priceVolume - (priceVolume * discountFraction);
+            const total = priceWithDiscount - (additionalFraction * priceWithDiscount);
+            const base = additionalApplied === 'No' ? priceWithDiscount : total;
+            const subtotal = base / 1.16;
+
+            return {
+                sku: p.sku || '',
+                description: p.description || '',
+                quantity: quantity,
+                unitPrice: unitPrice,
+                priceVolume: priceVolume,
+                discountFraction: discountFraction,
+                priceWithDiscount: priceWithDiscount,
+                subtotal: subtotal,
+                vat: base - subtotal,
+                additionalApplied: additionalApplied,
+                additionalFraction: additionalFraction,
+                total: total
+            };
+        }
+
+        function formatPercentJS(fraction) {
+            return (fraction * 100).toFixed(2) + '%';
+        }
+
+        /**
+         * Llena la vista previa con la estructura del formato CCL.
+         */
+        function populateCclPreview(data) {
+            const fecha = new Date(data.timestamp || Date.now());
+            document.getElementById('ccl-fecha').textContent =
+                fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }) +
+                '   |   Folio: ' + (data.folio || 'NUEVO');
+
+            document.getElementById('ccl-asesorNombre').textContent = data.advisorName || 'N/A';
+            document.getElementById('ccl-asesorTelefono').textContent =
+                data.advisorExt ? `55-52-62-99-99 / Extensión: ${data.advisorExt}` : '55-52-62-99-99 / Pregunte por su asesor';
+
+            document.getElementById('ccl-clienteNombre').textContent = 'Dirigida a: ' + (data.clientName || 'Cliente');
+            document.getElementById('ccl-clienteEmail').textContent = 'Correo: ' + (data.clientEmail || '');
+            document.getElementById('ccl-clienteTelefono').textContent = 'Teléfono: ' + (data.clientPhone || '');
+            document.getElementById('ccl-clienteObservacion').textContent = 'Observación: ' + (data.observations || '');
+
+            const tbody = document.getElementById('ccl-productos-tbody');
+            tbody.innerHTML = '';
+
+            let sumSubtotal = 0, sumVat = 0, sumTotal = 0;
+
+            (data.products || []).forEach(p => {
+                const r = computeCclRow(p);
+                sumSubtotal += r.subtotal;
+                sumVat += r.vat;
+                sumTotal += r.total;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="ccl-txt">${r.sku}</td>
+                    <td class="ccl-cen">${r.quantity}</td>
+                    <td class="ccl-txt">${r.description}</td>
+                    <td>${formatCurrencyJS(r.unitPrice)}</td>
+                    <td>${formatCurrencyJS(r.priceVolume)}</td>
+                    <td>${formatPercentJS(r.discountFraction)}</td>
+                    <td>${formatCurrencyJS(r.priceWithDiscount)}</td>
+                    <td>${formatCurrencyJS(r.subtotal)}</td>
+                    <td>${formatCurrencyJS(r.vat)}</td>
+                    <td class="ccl-cen">${r.additionalApplied}</td>
+                    <td>${formatPercentJS(r.additionalFraction)}</td>
+                    <td>${formatCurrencyJS(r.total)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('ccl-subtotal').textContent = formatCurrencyJS(sumSubtotal);
+            document.getElementById('ccl-iva').textContent = formatCurrencyJS(sumVat);
+            document.getElementById('ccl-total').textContent = formatCurrencyJS(sumTotal);
+        }
+
+        /**
+         * Muestra la vista previa que corresponde al formato elegido.
+         */
+        function applyPreviewFormat(formatId) {
+            const actual = document.getElementById('pdf-preview-content');
+            const ccl = document.getElementById('ccl-preview-content');
+            const esCcl = formatId === 'ccl_liverpool';
+
+            try {
+                if (esCcl && quoteDataForSave) populateCclPreview(quoteDataForSave);
+            } catch (e) {
+                // Si el CCL no se puede dibujar, se deja la vista actual visible y se dice
+                // por qué, en vez de dejar la pantalla en blanco sin explicación.
+                console.error('Error al dibujar la vista previa CCL:', e);
+                showPreviewMessage('No se pudo dibujar la vista previa del formato CCL: ' + e.message, true);
+                actual.classList.remove('hidden');
+                ccl.classList.add('hidden');
+                return;
+            }
+
+            actual.classList.toggle('hidden', esCcl);
+            ccl.classList.toggle('hidden', !esCcl);
+        }
+
+        function populatePreview(data) {
+            const folioText = data.folio || 'NUEVO';
+            document.getElementById('preview-folio').textContent = folioText;
+            currentFolioForPreview = data.folio;
+
+            // La cotización ya sabe con qué formato se guardó, así que la vista correcta se
+            // pinta de inmediato. Esperar a getEnabledQuoteFormats() dejaba la pantalla en la
+            // vista equivocada mientras el servidor respondía.
+            selectedFormatId = data.format || 'actual';
+            applyPreviewFormat(selectedFormatId);
+
+            // El selector se llena aparte: si tarda, ya no bloquea el dibujado.
+            loadPreviewFormats(data.format);
+            document.getElementById('preview-fechaEmision').textContent = new Date(data.timestamp || Date.now()).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+            document.getElementById('preview-asesorNombre').textContent = data.advisorName || 'N/A';
+            document.getElementById('preview-asesorExtension').textContent = data.advisorExt || 'N/A';
+            document.getElementById('preview-asesorExtension-body').textContent = data.advisorExt || 'N/A';
+            document.getElementById('preview-clienteNombre').textContent = data.clientName || 'N/A';
+            document.getElementById('preview-clienteEmail').textContent = data.clientEmail || 'N/A';
+            document.getElementById('preview-clienteTelefono').textContent = data.clientPhone || 'N/A';
+
+            const productosTbody = document.getElementById('preview-productos-tbody');
+            productosTbody.innerHTML = ''; 
+            if (data.products && Array.isArray(data.products)) {
+                data.products.forEach(p => {
+                    const unitPrice = parseFloat(p.unitPrice) || 0;
+                    const quantity = parseInt(p.quantity) || 0;
+                    const priceVolume = unitPrice * quantity;
+                    let finalPricePerLine;
+                    let discountDisplayString = "-";
+                    const costPaymentUnique = parseFloat(p.costPaymentUnique) || 0;
+                    let discountPublicPercent = parseFloat(p.discountPublicPercent) || 0;
+                    const additionalDiscountApplied = p.additionalDiscountApplied === 'Si';
+                    let additionalDiscountPercent = parseFloat(p.additionalDiscountPercent) || 0;
+
+                    if (costPaymentUnique > 0 && quantity > 0 && unitPrice > 0) {
+                        finalPricePerLine = costPaymentUnique;
+                    } else {
+                        let priceAfterPublic = priceVolume * (1 - (discountPublicPercent / 100));
+                        priceAfterPublic = Math.max(0, priceAfterPublic);
+                        finalPricePerLine = priceAfterPublic;
+                        if (additionalDiscountApplied && additionalDiscountPercent > 0) {
+                            finalPricePerLine = priceAfterPublic * (1 - (additionalDiscountPercent / 100));
+                        }
+                        finalPricePerLine = Math.max(0, finalPricePerLine);
+                    }
+                    const totalMonetaryDiscount = priceVolume - finalPricePerLine;
+                    const effectiveTotalPercentage = priceVolume > 0 ? (totalMonetaryDiscount / priceVolume) * 100 : 0;
+
+                    if (totalMonetaryDiscount > 0.001) {
+                        let details = [];
+                        if (discountPublicPercent > 0.001) details.push(`Púb: ${discountPublicPercent.toFixed(2)}%`);
+                        if (additionalDiscountApplied && additionalDiscountPercent > 0.001) details.push(`Adic: ${additionalDiscountPercent.toFixed(2)}%`);
+                        if (details.length > 0) discountDisplayString = `${details.join(' + ')}. Total: ${formatCurrencyJS(totalMonetaryDiscount)} (${effectiveTotalPercentage.toFixed(2)}% DesTot.)`;
+                        else discountDisplayString = `${formatCurrencyJS(totalMonetaryDiscount)} (${effectiveTotalPercentage.toFixed(2)}% DesTot.)`;
+                    }
+
+                    const rowHtml = `
+                        <tr>
+                            <td>${p.sku || ''}</td>
+                            <td style="text-align: center;">${quantity}</td>
+                            <td>${p.description || ''}</td>
+                            <td style="text-align: right;">${formatCurrencyJS(unitPrice)}</td>
+                            <td style="text-align: right;">${formatCurrencyJS(priceVolume)}</td>
+                            <td style="text-align: right;">${discountDisplayString}</td>
+                            <td style="text-align: right; font-weight: 500;">${formatCurrencyJS(finalPricePerLine)}</td>
+                        </tr>`;
+                    productosTbody.innerHTML += rowHtml;
+                });
+            }
+
+            document.getElementById('preview-subtotalGeneral').textContent = formatCurrencyJS(data.summarySubtotal);
+            document.getElementById('preview-ivaGeneral').textContent = formatCurrencyJS(data.summaryVat);
+            document.getElementById('preview-totalGeneral').textContent = formatCurrencyJS(data.summaryTotal);
+
+            const obsSection = document.getElementById('preview-observaciones-section');
+            const obsP = document.getElementById('preview-observaciones');
+            if (data.observations) {
+                obsP.textContent = data.observations;
+                obsSection.classList.remove('hidden');
+            } else {
+                obsSection.classList.add('hidden');
+            }
+        }
+        
+        function navigateToPage(page, params = {}) {
+            const redirectOverlay = document.getElementById('redirect-overlay');
+            if (redirectOverlay) redirectOverlay.classList.remove('hidden');
+
+            if (!AppUrl.go(page, params)) {
+                if (redirectOverlay) redirectOverlay.classList.add('hidden');
+                showPreviewMessage('Error al obtener URL para redirigir.', true);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const folioFromUrl = AppUrl.param('folio');
+            currentUserEmailForSave = AppSession.userEmail;
+            
+            let loadedFromCache = false;
+            
+            if (folioFromUrl) {
+                // 1. Intentar cargar desde caché específica del Folio (evita colisiones multi-pestaña) o genérica
+                const storedData = localStorage.getItem('pendingQuoteData_' + folioFromUrl) || localStorage.getItem('pendingQuoteData');
+                if (storedData) {
+                    try {
+                        const parsed = JSON.parse(storedData);
+                        if (parsed && parsed.folio === folioFromUrl) {
+                            quoteDataForSave = parsed;
+                            currentFolioForPreview = parsed.folio; 
+                            populatePreview(quoteDataForSave);
+                            loadedFromCache = true;
+                            console.log("🚀 Vista previa cargada desde la caché local.");
+                        }
+                    } catch (e) {
+                        console.error("Error al procesar caché local:", e);
+                    }
+                }
+                
+                // 2. Fallback: Si no había caché válida para este folio, descargar desde Sheets
+                if (!loadedFromCache) {
+                    showPreviewMessage('Descargando datos actualizados del servidor...', false);
+                    
+                    if (typeof google !== 'undefined' && google.script && google.script.run) {
+                        google.script.run
+                            .withSuccessHandler(function(response) {
+                                hideLoader();
+                                if (response.success && response.quote) {
+                                    quoteDataForSave = response.quote;
+                                    currentFolioForPreview = response.quote.folio;
+                                    
+                                    // Sincronizar de vuelta en localStorage para recargas rápidas
+                                    try {
+                                        localStorage.setItem('pendingQuoteData_' + currentFolioForPreview, JSON.stringify(response.quote));
+                                    } catch (e) {
+                                        console.error("Error al guardar en caché:", e);
+                                    }
+                                    
+                                    populatePreview(response.quote);
+                                    showPreviewMessage('Cotización sincronizada del servidor correctamente.', false);
+                                } else {
+                                    showPreviewMessage(response.message || 'Error al obtener la cotización del servidor.', true);
+                                    document.getElementById('preview-action-buttons').classList.add('hidden');
+                                    document.getElementById('pdf-preview-content').classList.add('hidden');
+                                    document.getElementById('ccl-preview-content').classList.add('hidden');
+                                }
+                            })
+                            .withFailureHandler(function(error) {
+                                hideLoader();
+                                showPreviewMessage('Error de comunicación con el servidor: ' + error.message, true);
+                                document.getElementById('preview-action-buttons').classList.add('hidden');
+                                document.getElementById('pdf-preview-content').classList.add('hidden');
+                                document.getElementById('ccl-preview-content').classList.add('hidden');
+                            })
+                            .getQuoteDetails(folioFromUrl);
+                    } else {
+                        hideLoader();
+                        showPreviewMessage('Ambiente Google Apps Script no detectado y no hay datos locales en caché para el folio: ' + folioFromUrl, true);
+                        document.getElementById('preview-action-buttons').classList.add('hidden');
+                        document.getElementById('pdf-preview-content').classList.add('hidden');
+                        document.getElementById('ccl-preview-content').classList.add('hidden');
+                    }
+                } else {
+                    hideLoader();
+                }
+            } else {
+                // Si no hay folio en la URL, intentar con la caché genérica antigua
+                try {
+                    const storedData = localStorage.getItem('pendingQuoteData');
+                    if (storedData) {
+                        quoteDataForSave = JSON.parse(storedData);
+                        currentFolioForPreview = quoteDataForSave.folio; 
+                        populatePreview(quoteDataForSave);
+                    } else {
+                        showPreviewMessage('No se especificó un folio ni se encontraron datos en caché.', true);
+                        document.getElementById('preview-action-buttons').classList.add('hidden');
+                        document.getElementById('pdf-preview-content').classList.add('hidden');
+                        document.getElementById('ccl-preview-content').classList.add('hidden');
+                    }
+                } catch (e) {
+                    showPreviewMessage('Error al cargar datos en la vista previa.', true);
+                    document.getElementById('preview-action-buttons').classList.add('hidden');
+                    document.getElementById('pdf-preview-content').classList.add('hidden');
+                    document.getElementById('ccl-preview-content').classList.add('hidden');
+                }
+                hideLoader();
+            }
+
+            const downloadPdfButton = document.getElementById('download-pdf-button');
+            const goToHomeButton = document.getElementById('go-to-home-button');
+            const returnToDashboardButton = document.getElementById('return-to-dashboard-button');
+            
+            if (downloadPdfButton) {
+                downloadPdfButton.addEventListener('click', () => {
+                    if (!currentFolioForPreview) {
+                        showPreviewMessage('No hay folio de cotización para generar el PDF.', true);
+                        return;
+                    }
+
+                    // Se lee el selector en el momento del clic: es la única fuente de verdad.
+                    const formatSelect = document.getElementById('format-select');
+                    const chosenFormat = (formatSelect && formatSelect.value) || selectedFormatId;
+                    if (!chosenFormat) {
+                        showPreviewMessage('Los formatos todavía no terminan de cargar. Espera un momento e intenta de nuevo.', true);
+                        return;
+                    }
+
+                    const spinner = document.getElementById('downloadSpinner');
+                    const text = document.getElementById('downloadButtonText');
+
+                    const restoreButton = () => {
+                        spinner.classList.add('hidden');
+                        text.textContent = 'Descargar PDF';
+                        downloadPdfButton.disabled = false;
+                    };
+
+                    spinner.classList.remove('hidden');
+                    text.textContent = 'Generando...';
+                    downloadPdfButton.disabled = true;
+
+                    // Se pide el PDF real al servidor en vez de imprimir la pantalla, porque
+                    // el formato CCL se arma en Google Sheets y no existe en esta página.
+                    google.script.run
+                        .withSuccessHandler(function(response) {
+                            restoreButton();
+                            if (response && response.success) {
+                                triggerPdfDownload(response);
+                            } else {
+                                showPreviewMessage((response && response.message) || 'No se pudo generar el PDF.', true);
+                            }
+                        })
+                        .withFailureHandler(function(error) {
+                            restoreButton();
+                            showPreviewMessage('Error al generar el PDF: ' + error.message, true);
+                        })
+                        .downloadQuotePdf(currentFolioForPreview, chosenFormat);
+                });
+            }
+
+            // "Regresar a Inicio" respeta el rol: el avanzado vuelve a su panel de supervisión.
+            if (goToHomeButton) {
+                goToHomeButton.addEventListener('click', () => {
+                    navigateToPage(AppUrl.homePage());
+                });
+            }
+
+            if (returnToDashboardButton) {
+                returnToDashboardButton.addEventListener('click', () => {
+                     navigateToPage(AppUrl.homePage());
+                });
+            }
+
+            // Botón lógico: volver al formulario para corregir la cotización visible.
+            const editQuoteButton = document.getElementById('edit-quote-button');
+            if (editQuoteButton) {
+                editQuoteButton.addEventListener('click', () => {
+                    if (!currentFolioForPreview) {
+                        showPreviewMessage('No hay folio para editar.', true);
+                        return;
+                    }
+                    navigateToPage('cotizacion', { folio: currentFolioForPreview, action: 'edit' });
+                });
+            }
+
+            // MODAL DE CONFIRMACIÓN DE ENVÍO (animado con GSAP)
+            const sendByEmailButton = document.getElementById('send-by-email-button');
+            const emailConfirmationModal = document.getElementById('email-confirmation-modal');
+            const emailModalCard = emailConfirmationModal.querySelector('.v-modal');
+            const modalCancelButton = document.getElementById('modal-cancel-button');
+            const modalConfirmButton = document.getElementById('modal-confirm-button');
+
+            if (sendByEmailButton) {
+                sendByEmailButton.addEventListener('click', () => {
+                    AppMotion.modalIn(emailConfirmationModal, emailModalCard);
+                });
+            }
+
+            if (modalCancelButton) {
+                modalCancelButton.addEventListener('click', () => {
+                    AppMotion.modalOut(emailConfirmationModal, emailModalCard);
+                });
+            }
+            emailConfirmationModal.addEventListener('click', (e) => {
+                if (e.target === emailConfirmationModal) AppMotion.modalOut(emailConfirmationModal, emailModalCard);
+            });
+
+            if (modalConfirmButton) {
+                modalConfirmButton.addEventListener('click', () => {
+                    AppMotion.modalOut(emailConfirmationModal, emailModalCard, () => {
+                        if (currentFolioForPreview) {
+                            navigateToPage('correoventel', { folio: currentFolioForPreview, format: selectedFormatId || '' });
+                        } else {
+                            showPreviewMessage('Error: No se encontró el folio de la cotización para enviar.', true);
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
